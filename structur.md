@@ -6,6 +6,7 @@
     3. 종료 시간                // LocalTime
     4. 반복 유형 (일/ 주 단위)  // enum
     5. 반복 요일/ 일자          // Set<DayOfWeek>
+    6. 반복 없을 시 날짜        // LocalDate
 
 유동 일정    
     1. 일정 이름                // String
@@ -20,3 +21,4 @@
     3. 종료 시간                // LocalTime
     4. 반복 유형 (일/ 주 단위)  // enum
     5. 반복 요일/ 일자          // Set<DayOfWeek>
+    6. 반복 없을 시 날짜        // LocalDate

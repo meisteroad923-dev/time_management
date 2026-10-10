@@ -1,19 +1,22 @@
 package scheduler.model;
 
 import java.time.LocalTime;
+import java.time.LocalDate;
 import java.time.DayOfWeek;
 import java.util.Set;
 
 public class FixedSchedule {
     private String name;
+    private LocalDate date;
     private LocalTime startTime;
     private LocalTime endTime;
     private RepeatType repeatType;
     private Set<DayOfWeek> repeatDays;
 
-    public FixedSchedule(String name, LocalTime startTime, LocalTime endTime, 
+    public FixedSchedule(String name, LocalDate date, LocalTime startTime, LocalTime endTime, 
                         RepeatType repeatType, Set<DayOfWeek> repeatDays){
         this.name = name;
+        this.date = date;
         this.startTime = startTime;
         this.endTime = endTime;
         this.repeatType = repeatType;
@@ -34,5 +37,8 @@ public class FixedSchedule {
     }
     public Set<DayOfWeek> getRepeatDays(){
         return repeatDays;
+    }
+    public LocalDate getDate(){
+        return date;
     }
 }

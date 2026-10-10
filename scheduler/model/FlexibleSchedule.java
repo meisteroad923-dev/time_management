@@ -33,4 +33,6 @@ public class FlexibleSchedule {
     public boolean isCompleted(){
         return completed;
     }
+
+    
 }
