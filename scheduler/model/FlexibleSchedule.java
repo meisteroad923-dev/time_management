@@ -8,7 +8,7 @@ public class FlexibleSchedule {
     private LocalDate deadline;
     private int importance;
     private boolean completed;
-
+    //최초 생성용
     public FlexibleSchedule(String name, int estimatedMinutes, LocalDate deadline,
                             int importance){
         this.name = name;
@@ -17,12 +17,24 @@ public class FlexibleSchedule {
         this.importance = importance;
         this.completed =false;
     }
+    //수정용
+    public FlexibleSchedule(String name, int estimatedMinutes, LocalDate deadline,
+                            int importance, boolean completed){
+        this.name = name;
+        this.estimatedMinutes = estimatedMinutes;
+        this.deadline = deadline;
+        this.importance = importance;
+        this.completed =completed;
+    }
 
     public String getName(){
         return this.name;
     }
     public int getEstimatedMinutes(){
         return this.estimatedMinutes;
+    }
+    public void setEstimatedMinutes(int newEstimatedMinutes){
+        estimatedMinutes = newEstimatedMinutes;
     }
     public LocalDate getDeadline(){
         return deadline;
@@ -34,5 +46,7 @@ public class FlexibleSchedule {
         return completed;
     }
 
-    
+    public void toggleCompleted(){
+        completed = !completed;
+    }
 }

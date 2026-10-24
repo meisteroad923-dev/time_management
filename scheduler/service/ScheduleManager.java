@@ -47,6 +47,50 @@ public class ScheduleManager {
         return blockedTimes;
     }
 
+    public boolean removeFixedSchedule(FixedSchedule schedule){
+        return fixedSchedules.remove(schedule);
+    }
+
+    public boolean removeFlexibleSchedule(FlexibleSchedule schedule){
+        return flexibleSchedules.remove(schedule);
+    }
+
+    public boolean removeBlockedTime(BlockedTime blockedTime){
+        return blockedTimes.remove(blockedTime);
+    }
+
+    public boolean updateFixedSchedule(FixedSchedule oldSchedule, FixedSchedule newSchedule){
+        int index = fixedSchedules.indexOf(oldSchedule);
+
+        if (index == -1 ) return false;
+        if (checkConflict(oldSchedule, newSchedule)) return false;
+
+        fixedSchedules.set(index, newSchedule);
+        return true;
+    }
+
+    public boolean updateFlexibleSchedule(FlexibleSchedule oldSchedule, FlexibleSchedule newSchedule){
+        int index = flexibleSchedules.indexOf(oldSchedule);
+        if (index == -1 ) return false;
+
+        newSchedule.setEstimatedMinutes(adjustEstimatedTime(newSchedule.getEstimatedMinutes()));
+
+        flexibleSchedules.set(index, newSchedule);
+        return true;
+    }
+
+    public boolean updateBlockedTime(BlockedTime oldBlockedTime, BlockedTime newBlockedTime){
+        int index = blockedTimes.indexOf(oldBlockedTime);
+
+        if (index == -1 ) return false;
+        if (checkConflict(oldBlockedTime, newBlockedTime)) return false;
+
+        blockedTimes.set(index, newBlockedTime);
+        return true;
+    }
+
+
+
     //두 일정의 시작, 종료 시간을 받아서 겹치는지 확인
     private boolean isTimeOverlap(LocalTime start1, LocalTime end1, LocalTime start2, LocalTime end2){
         return start1.isBefore(end2) && start2.isBefore(end1);
@@ -92,7 +136,7 @@ public class ScheduleManager {
         }
         return false;
     }
-
+    //배치 금지 시간대가 기존 일정과 충돌 여부 확인
     public boolean checkConflict(BlockedTime newBlockedTime) {
         // fixedSchedule이 blockedtime보다 우선순위가 높음 
         // BlockedTime은 기존 FixedSchedule과 BlockedTime 모두와 충돌하면 등록할 수 없음
@@ -116,6 +160,59 @@ public class ScheduleManager {
             }
         }
         return false;
+    }
+
+    //수정시 충돌여부를 확인(수정에 대상이 되는 객체를 빼고 충돌 검사)
+    public boolean checkConflict(FixedSchedule oldSchedule, FixedSchedule newSchedule){
+        for (FixedSchedule existing : fixedSchedules){
+            if (oldSchedule == existing) continue;
+            boolean dateOverlap = isDateOverlap(newSchedule.getDate(),newSchedule.getRepeatType(), newSchedule.getRepeatDays(),
+                                                existing.getDate(), existing.getRepeatType(), existing.getRepeatDays());
+            boolean timeOverlap = isTimeOverlap(newSchedule.getStartTime(), newSchedule.getEndTime(),
+                                                existing.getStartTime(), existing.getEndTime());
+            
+            if (dateOverlap && timeOverlap){
+                return true;
+            }
+        }
+        return false;
+    }
+
+    public boolean checkConflict(BlockedTime oldBlockedTime,BlockedTime newBlockedTime) {
+        // fixedSchedule이 blockedtime보다 우선순위가 높음 
+        // BlockedTime은 기존 FixedSchedule과 BlockedTime 모두와 충돌하면 등록할 수 없음
+        for (FixedSchedule existing : fixedSchedules){
+            boolean dateOverlap = isDateOverlap(newBlockedTime.getDate(), newBlockedTime.getRepeatType(),newBlockedTime.getRepeatDays(), 
+                                                existing.getDate(), existing.getRepeatType(), existing.getRepeatDays());
+            boolean timeOverlap = isTimeOverlap(newBlockedTime.getStartTime(),newBlockedTime.getEndTime(), 
+                                                existing.getStartTime(), existing.getEndTime());
+            if (dateOverlap && timeOverlap){
+                return true;
+            }
+        }
+
+        for (BlockedTime existing : blockedTimes){
+            if (oldBlockedTime == existing) continue;
+            boolean dateOverlap = isDateOverlap(newBlockedTime.getDate(), newBlockedTime.getRepeatType(),newBlockedTime.getRepeatDays(), 
+                                                existing.getDate(), existing.getRepeatType(), existing.getRepeatDays());
+            boolean timeOverlap = isTimeOverlap(newBlockedTime.getStartTime(),newBlockedTime.getEndTime(), 
+                                                existing.getStartTime(), existing.getEndTime());
+            if (dateOverlap && timeOverlap){
+                return true;
+            }
+        }
+        return false;
+    }
+    
+
+    //예상시간을 30분 단위로 보정
+    public int adjustEstimatedTime(int estimatedTime){
+        if (estimatedTime % 30 == 0) return (estimatedTime / 30) * 30;
+        else  return ((estimatedTime / 30) + 1) * 30;
+    }
+    //유동 일정의 완료 여부를 토글로 변경
+    public void updateCompletionStatus(FlexibleSchedule schedule){
+         schedule.toggleCompleted();
     }
 }
 
