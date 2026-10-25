@@ -1,12 +1,17 @@
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import scheduler.model.FixedSchedule;
 import scheduler.model.FlexibleSchedule;
 import scheduler.model.BlockedTime;
 import scheduler.model.RepeatType;
+import scheduler.model.TimeSlot;
+import scheduler.service.AutoScheduler;
 import scheduler.service.ScheduleManager;
 
 public class Main {
@@ -423,5 +428,193 @@ public class Main {
                 )
                 + " / 기대값: false");
         */
-    }
+        
+        /*
+        AutoScheduler autoScheduler = new AutoScheduler();
+
+        List<FixedSchedule> fixedSchedules = new ArrayList<>();
+        List<BlockedTime> blockedTimes = new ArrayList<>();
+
+
+        // =====================================================
+        // 1. FixedSchedule 테스트 데이터
+        // =====================================================
+
+        // 매주 월/수 09:00 ~ 10:30
+        FixedSchedule math = new FixedSchedule(
+                "공학수학",
+                null,
+                LocalTime.of(9, 0),
+                LocalTime.of(10, 30),
+                RepeatType.WEEKLY,
+                Set.of(
+                        DayOfWeek.MONDAY,
+                        DayOfWeek.WEDNESDAY
+                )
+        );
+
+        // 매주 화요일 13:00 ~ 14:30
+        FixedSchedule network = new FixedSchedule(
+                "네트워크",
+                null,
+                LocalTime.of(13, 0),
+                LocalTime.of(14, 30),
+                RepeatType.WEEKLY,
+                Set.of(DayOfWeek.TUESDAY)
+        );
+
+        // 특정 날짜 목요일 15:00 ~ 17:00
+        FixedSchedule specialLecture = new FixedSchedule(
+                "특강",
+                LocalDate.of(2026, 10, 29),
+                LocalTime.of(15, 0),
+                LocalTime.of(17, 0),
+                RepeatType.NONE,
+                Set.of()
+        );
+
+        fixedSchedules.add(math);
+        fixedSchedules.add(network);
+        fixedSchedules.add(specialLecture);
+
+
+        // =====================================================
+        // 2. BlockedTime 테스트 데이터
+        // =====================================================
+
+        // 매일 점심시간 12:00 ~ 13:00
+        BlockedTime lunch = new BlockedTime(
+                "점심",
+                null,
+                LocalTime.of(12, 0),
+                LocalTime.of(13, 0),
+                RepeatType.DAILY,
+                Set.of()
+        );
+
+        // 월요일만 18:00 ~ 19:00
+        BlockedTime mondayDinner = new BlockedTime(
+                "저녁 약속",
+                LocalDate.of(2026, 10, 26),
+                LocalTime.of(18, 0),
+                LocalTime.of(19, 0),
+                RepeatType.NONE,
+                Set.of()
+        );
+
+        // 수요일 10:00 ~ 12:00
+        // 공학수학 09:00 ~ 10:30과 일부 겹침
+        BlockedTime overlapTest = new BlockedTime(
+                "겹침 테스트",
+                LocalDate.of(2026, 10, 28),
+                LocalTime.of(10, 0),
+                LocalTime.of(12, 0),
+                RepeatType.NONE,
+                Set.of()
+        );
+
+        // 금요일 dayStart 이전부터 걸치는 일정
+        // 자동배치 범위가 08:00부터라면 08:00~09:00만 점유 처리되어야 함
+        BlockedTime beforeStart = new BlockedTime(
+                "아침 일정",
+                LocalDate.of(2026, 10, 30),
+                LocalTime.of(7, 0),
+                LocalTime.of(9, 0),
+                RepeatType.NONE,
+                Set.of()
+        );
+
+        // 토요일 dayEnd 이후까지 걸치는 일정
+        // 자동배치 범위가 23:00까지라면 22:00~23:00만 점유
+        BlockedTime afterEnd = new BlockedTime(
+                "늦은 일정",
+                LocalDate.of(2026, 10, 31),
+                LocalTime.of(22, 0),
+                LocalTime.of(23, 30),
+                RepeatType.NONE,
+                Set.of()
+        );
+
+        blockedTimes.add(lunch);
+        blockedTimes.add(mondayDinner);
+        blockedTimes.add(overlapTest);
+        blockedTimes.add(beforeStart);
+        blockedTimes.add(afterEnd);
+
+
+        // =====================================================
+        // 3. 일주일 FreeSlot 계산
+        // =====================================================
+
+        LocalDate weekStart =
+                LocalDate.of(2026, 10, 26); // 월요일
+
+        // 테스트용 자동배치 가능 시간
+        LocalTime dayStart = LocalTime.of(8, 0);
+        LocalTime dayEnd = LocalTime.of(23, 0);
+
+        Map<LocalDate, List<TimeSlot>> weeklyFreeSlots =
+                autoScheduler.createWeeklyFreeSlots(
+                        weekStart,
+                        dayStart,
+                        dayEnd,
+                        fixedSchedules,
+                        blockedTimes
+                );
+
+
+        // =====================================================
+        // 4. 결과 출력
+        // =====================================================
+
+        System.out.println("====================================");
+        System.out.println("주간 FreeSlot 테스트");
+        System.out.println("기간: "
+                + weekStart
+                + " ~ "
+                + weekStart.plusDays(6));
+        System.out.println("자동배치 가능 시간: "
+                + dayStart
+                + " ~ "
+                + dayEnd);
+        System.out.println("====================================");
+
+
+        // HashMap 순서가 보장되지 않으므로
+        // 월요일부터 직접 날짜를 만들어서 출력
+        for (int i = 0; i < 7; i++) {
+
+            LocalDate date = weekStart.plusDays(i);
+
+            System.out.println();
+            System.out.println(
+                    date + " "
+                    + date.getDayOfWeek()
+            );
+
+            List<TimeSlot> slots =
+                    weeklyFreeSlots.get(date);
+
+            if (slots.isEmpty()) {
+                System.out.println("  빈 시간 없음");
+                continue;
+            }
+
+            for (TimeSlot slot : slots) {
+
+                System.out.println(
+                        "  "
+                        + slot.getStartTime()
+                        + " ~ "
+                        + slot.getEndTime()
+                        + "  ("
+                        + slot.getDurationMinutes()
+                        + "분)"
+                );
+            }
+        }*/
+
+
+            
+        }
 }

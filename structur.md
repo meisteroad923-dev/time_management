@@ -23,6 +23,59 @@
     5. 반복 요일/ 일자          // Set<DayOfWeek>
     6. 반복 없을 시 날짜        // LocalDate
 
+-------------------------------------------------------------------
+TimeSlot
+
+필드
+├─ LocalDate date
+├─ LocalTime startTime
+└─ LocalTime endTime
+
+생성자
+└─ TimeSlot(date, startTime, endTime)
+
+getter
+├─ getDate()
+├─ getStartTime()
+└─ getEndTime()
+
+기능
+└─ getDurationMinutes()
+-------------------------------------------------------------------
+ScheduledTask
+
+필드
+├─ FlexibleSchedule flexibleSchedule
+├─ LocalDate date
+├─ LocalTime startTime
+└─ LocalTime endTime
+
+생성자
+└─ ScheduledTask(...)
+
+getter
+├─ getFlexibleSchedule()
+├─ getDate()
+├─ getStartTime()
+└─ getEndTime()
+
+기능
+└─ getDurationMinutes()
+-------------------------------------------------------------------
+WeeklySchedule
+│
+├─ LocalDate weekStart
+│
+├─ List<ScheduledTask> scheduledTasks
+│
+├─ WeeklySchedule(weekStart)
+│
+├─ getWeekStart()
+├─ getWeekEnd()
+├─ getScheduledTasks()
+│
+└─ addScheduledTask(task)
+-------------------------------------------------------------------
 ScheduleManager
 method
     
