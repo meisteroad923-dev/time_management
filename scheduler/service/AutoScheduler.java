@@ -12,16 +12,13 @@ import java.util.Set;
 
 import scheduler.model.BlockedTime;
 import scheduler.model.FixedSchedule;
-<<<<<<< HEAD
-import scheduler.model.RepeatType;
-import scheduler.model.TimeSlot;
-=======
+
 import scheduler.model.FlexibleSchedule;
 import scheduler.model.RepeatType;
 import scheduler.model.ScheduledTask;
 import scheduler.model.TimeSlot;
 import scheduler.model.WeeklySchedule;
->>>>>>> 2867760 (feat: implement automatic schedule placement algorithm)
+
 
 import java.time.DayOfWeek;
 
@@ -117,10 +114,7 @@ public class AutoScheduler {
 
         return weeklyFreeSlots;
     }
-<<<<<<< HEAD
 
-
-=======
 //----------------------------------------------자동 배치 알고리즘 구현-----------------------------------------------------------------------
     // 마감일, 중요도, 예상 시간이 긴 순서로 정렬
     private List<FlexibleSchedule> sortFlexibleSchedule(List<FlexibleSchedule> flexibleSchedules){
@@ -192,5 +186,5 @@ public class AutoScheduler {
         }
         return weeklySchedule;
     }
->>>>>>> 2867760 (feat: implement automatic schedule placement algorithm)
+
 }

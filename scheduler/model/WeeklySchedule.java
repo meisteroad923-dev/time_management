@@ -15,18 +15,14 @@ import java.util.ArrayList;
 public class WeeklySchedule {  
     private LocalDate weekStart;
     private List<ScheduledTask> scheduledTasks;
-<<<<<<< HEAD
-=======
+
     private List<FlexibleSchedule> unscheduledTasks;    //자리가 없어 배치 되지 못한 일정들
->>>>>>> 2867760 (feat: implement automatic schedule placement algorithm)
     
     public WeeklySchedule(LocalDate  weekStart){
         this.weekStart = weekStart;
         this.scheduledTasks = new ArrayList<>();
-<<<<<<< HEAD
-=======
+
         this.unscheduledTasks = new ArrayList<>();
->>>>>>> 2867760 (feat: implement automatic schedule placement algorithm)
     }
 
     public LocalDate getWeekStart(){
@@ -45,8 +41,7 @@ public class WeeklySchedule {
         scheduledTasks.add(task);
     }
 
-<<<<<<< HEAD
-=======
+
     public List<FlexibleSchedule> getUnscheduledTasks() {
         return unscheduledTasks;
     }
@@ -54,5 +49,4 @@ public class WeeklySchedule {
     public void addUnscheduledTask(FlexibleSchedule schedule) {
         unscheduledTasks.add(schedule);
     }
->>>>>>> 2867760 (feat: implement automatic schedule placement algorithm)
 }

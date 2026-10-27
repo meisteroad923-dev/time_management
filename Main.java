@@ -10,20 +10,16 @@ import scheduler.model.FixedSchedule;
 import scheduler.model.FlexibleSchedule;
 import scheduler.model.BlockedTime;
 import scheduler.model.RepeatType;
-<<<<<<< HEAD
-import scheduler.model.TimeSlot;
-=======
+
 import scheduler.model.ScheduledTask;
 import scheduler.model.TimeSlot;
 import scheduler.model.WeeklySchedule;
->>>>>>> 2867760 (feat: implement automatic schedule placement algorithm)
 import scheduler.service.AutoScheduler;
 import scheduler.service.ScheduleManager;
 
 public class Main {
 
     public static void main(String[] args) {
-        ScheduleManager manager = new ScheduleManager();
         /*
         ============================================================
         TEST 1. 예상 소요시간 30분 단위 보정
@@ -620,9 +616,7 @@ public class Main {
             }
         }*/
 
-<<<<<<< HEAD
 
-=======
         /*
         AutoScheduler autoScheduler = new AutoScheduler();
 
@@ -1151,7 +1145,6 @@ public class Main {
 
         System.out.println("========================================");
         
->>>>>>> 2867760 (feat: implement automatic schedule placement algorithm)
             
         }
 }
