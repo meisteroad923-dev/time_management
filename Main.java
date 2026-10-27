@@ -10,7 +10,13 @@ import scheduler.model.FixedSchedule;
 import scheduler.model.FlexibleSchedule;
 import scheduler.model.BlockedTime;
 import scheduler.model.RepeatType;
+<<<<<<< HEAD
 import scheduler.model.TimeSlot;
+=======
+import scheduler.model.ScheduledTask;
+import scheduler.model.TimeSlot;
+import scheduler.model.WeeklySchedule;
+>>>>>>> 2867760 (feat: implement automatic schedule placement algorithm)
 import scheduler.service.AutoScheduler;
 import scheduler.service.ScheduleManager;
 
@@ -614,7 +620,538 @@ public class Main {
             }
         }*/
 
+<<<<<<< HEAD
 
+=======
+        /*
+        AutoScheduler autoScheduler = new AutoScheduler();
+
+        // 자동배치 대상 주간: 2026-10-26(월) ~ 2026-11-01(일)
+        LocalDate weekStart = LocalDate.of(2026, 10, 26);
+
+        // 테스트용 하루 자동배치 가능 시간
+        LocalTime dayStart = LocalTime.of(8, 0);
+        LocalTime dayEnd = LocalTime.of(18, 0);
+
+
+        // =====================================================
+        // 1. 고정 일정
+        // =====================================================
+
+        List<FixedSchedule> fixedSchedules = new ArrayList<>();
+
+        // 매주 월/수 09:00 ~ 10:30
+        fixedSchedules.add(
+            new FixedSchedule(
+                "수학 수업",
+                weekStart,
+                LocalTime.of(9, 0),
+                LocalTime.of(10, 30),
+                RepeatType.WEEKLY,
+                Set.of(DayOfWeek.MONDAY, DayOfWeek.WEDNESDAY)
+            )
+        );
+
+        // 매주 화요일 13:00 ~ 14:30
+        fixedSchedules.add(
+            new FixedSchedule(
+                "네트워크 수업",
+                weekStart,
+                LocalTime.of(13, 0),
+                LocalTime.of(14, 30),
+                RepeatType.WEEKLY,
+                Set.of(DayOfWeek.TUESDAY)
+            )
+        );
+
+
+        // =====================================================
+        // 2. 블록 시간
+        // =====================================================
+
+        List<BlockedTime> blockedTimes = new ArrayList<>();
+
+        // 매일 점심시간 12:00 ~ 13:00
+        blockedTimes.add(
+            new BlockedTime(
+                "점심시간",
+                weekStart,
+                LocalTime.of(12, 0),
+                LocalTime.of(13, 0),
+                RepeatType.DAILY,
+                Set.of()
+            )
+        );
+
+        // 월요일 15:00 ~ 16:00 사용 불가
+        blockedTimes.add(
+            new BlockedTime(
+                "개인 일정",
+                LocalDate.of(2026, 10, 26),
+                LocalTime.of(15, 0),
+                LocalTime.of(16, 0),
+                RepeatType.NONE,
+                Set.of()
+            )
+        );
+
+
+        // =====================================================
+        // 3. 유동 일정
+        // =====================================================
+
+        List<FlexibleSchedule> flexibleSchedules = new ArrayList<>();
+
+        flexibleSchedules.add(
+            new FlexibleSchedule(
+                "알고리즘 과제",
+                90,
+                LocalDate.of(2026, 10, 26),
+                5
+            )
+        );
+
+        flexibleSchedules.add(
+            new FlexibleSchedule(
+                "영어 공부",
+                120,
+                LocalDate.of(2026, 10, 27),
+                4
+            )
+        );
+
+        flexibleSchedules.add(
+            new FlexibleSchedule(
+                "수학 복습",
+                60,
+                LocalDate.of(2026, 10, 28),
+                3
+            )
+        );
+
+        flexibleSchedules.add(
+            new FlexibleSchedule(
+                "보고서 작성",
+                180,
+                LocalDate.of(2026, 10, 30),
+                5
+            )
+        );
+
+
+        // 이미 마감일이 지난 일정 → 배치 실패해야 함
+        flexibleSchedules.add(
+            new FlexibleSchedule(
+                "기한 지난 과제",
+                60,
+                LocalDate.of(2026, 10, 25),
+                5
+            )
+        );
+
+
+        // 완료된 일정 → 자동배치 대상에서 아예 제외되어야 함
+        FlexibleSchedule completedTask =
+            new FlexibleSchedule(
+                "이미 끝낸 과제",
+                60,
+                LocalDate.of(2026, 10, 29),
+                5
+            );
+
+        completedTask.toggleCompleted();
+
+        flexibleSchedules.add(completedTask);
+
+
+        // =====================================================
+        // 4. 자동배치 실행
+        // =====================================================
+
+        WeeklySchedule result =
+            autoScheduler.autoSchedule(
+                weekStart,
+                dayStart,
+                dayEnd,
+                fixedSchedules,
+                flexibleSchedules,
+                blockedTimes
+            );
+
+
+        // =====================================================
+        // 5. 배치 성공 결과 출력
+        // =====================================================
+
+        System.out.println();
+        System.out.println("========================================");
+        System.out.println("자동배치 성공");
+        System.out.println("========================================");
+
+        for (ScheduledTask task : result.getScheduledTasks()) {
+
+            System.out.println(
+                task.getFlexibleSchedule().getName()
+                + " | "
+                + task.getDate()
+                + " "
+                + task.getDate().getDayOfWeek()
+                + " | "
+                + task.getStartTime()
+                + " ~ "
+                + task.getEndTime()
+                + " | "
+                + task.getDurationMinutes()
+                + "분"
+            );
+        }
+
+
+        // =====================================================
+        // 6. 배치 실패 결과 출력
+        // =====================================================
+
+        System.out.println();
+        System.out.println("========================================");
+        System.out.println("자동배치 실패");
+        System.out.println("========================================");
+
+        for (FlexibleSchedule schedule : result.getUnscheduledTasks()) {
+
+            System.out.println(
+                schedule.getName()
+                + " | deadline: "
+                + schedule.getDeadline()
+                + " | "
+                + schedule.getEstimatedMinutes()
+                + "분"
+            );
+        }
+
+
+        // =====================================================
+        // 7. 개수 출력
+        // =====================================================
+
+        System.out.println();
+        System.out.println("========================================");
+        System.out.println(
+            "배치 성공 개수: "
+            + result.getScheduledTasks().size()
+        );
+
+        System.out.println(
+            "배치 실패 개수: "
+            + result.getUnscheduledTasks().size()
+        );
+        System.out.println("========================================");
+        */
+
+        AutoScheduler autoScheduler = new AutoScheduler();
+
+        LocalDate weekStart = LocalDate.of(2026, 10, 26);
+
+        // 자동배치 가능 시간
+        LocalTime dayStart = LocalTime.of(8, 0);
+        LocalTime dayEnd = LocalTime.of(18, 0);
+
+
+        // =====================================================
+        // FixedSchedule
+        // =====================================================
+
+        List<FixedSchedule> fixedSchedules = new ArrayList<>();
+
+        // 월/수 09:00 ~ 10:30
+        fixedSchedules.add(
+            new FixedSchedule(
+                "수학 수업",
+                weekStart,
+                LocalTime.of(9, 0),
+                LocalTime.of(10, 30),
+                RepeatType.WEEKLY,
+                Set.of(
+                    DayOfWeek.MONDAY,
+                    DayOfWeek.WEDNESDAY
+                )
+            )
+        );
+
+        // 화/목 13:00 ~ 15:00
+        fixedSchedules.add(
+            new FixedSchedule(
+                "전공 수업",
+                weekStart,
+                LocalTime.of(13, 0),
+                LocalTime.of(15, 0),
+                RepeatType.WEEKLY,
+                Set.of(
+                    DayOfWeek.TUESDAY,
+                    DayOfWeek.THURSDAY
+                )
+            )
+        );
+
+        // 금요일만 08:00 ~ 11:00
+        fixedSchedules.add(
+            new FixedSchedule(
+                "특강",
+                LocalDate.of(2026, 10, 30),
+                LocalTime.of(8, 0),
+                LocalTime.of(11, 0),
+                RepeatType.NONE,
+                Set.of()
+            )
+        );
+
+
+        // =====================================================
+        // BlockedTime
+        // =====================================================
+
+        List<BlockedTime> blockedTimes = new ArrayList<>();
+
+        // 매일 점심시간
+        blockedTimes.add(
+            new BlockedTime(
+                "점심",
+                weekStart,
+                LocalTime.of(12, 0),
+                LocalTime.of(13, 0),
+                RepeatType.DAILY,
+                Set.of()
+            )
+        );
+
+        // 월요일 15:00 ~ 17:00
+        blockedTimes.add(
+            new BlockedTime(
+                "병원",
+                LocalDate.of(2026, 10, 26),
+                LocalTime.of(15, 0),
+                LocalTime.of(17, 0),
+                RepeatType.NONE,
+                Set.of()
+            )
+        );
+
+        // 수요일 10:30 ~ 12:00
+        // 수학수업 09:00~10:30과 딱 붙어 있음
+        blockedTimes.add(
+            new BlockedTime(
+                "미팅",
+                LocalDate.of(2026, 10, 28),
+                LocalTime.of(10, 30),
+                LocalTime.of(12, 0),
+                RepeatType.NONE,
+                Set.of()
+            )
+        );
+
+        // 토요일 08:00 ~ 16:00
+        // 큰 구간을 막아서 긴 일정 실패 가능성 확인
+        blockedTimes.add(
+            new BlockedTime(
+                "외출",
+                LocalDate.of(2026, 10, 31),
+                LocalTime.of(8, 0),
+                LocalTime.of(16, 0),
+                RepeatType.NONE,
+                Set.of()
+            )
+        );
+
+
+        // =====================================================
+        // FlexibleSchedule
+        // =====================================================
+
+        List<FlexibleSchedule> flexibleSchedules = new ArrayList<>();
+
+        // 마감 월요일 / 90분
+        // 월요일 10:30~12:00에 정확히 들어갈 가능성이 큼
+        flexibleSchedules.add(
+            new FlexibleSchedule(
+                "알고리즘 과제",
+                90,
+                LocalDate.of(2026, 10, 26),
+                5
+            )
+        );
+
+        // 마감 화요일
+        flexibleSchedules.add(
+            new FlexibleSchedule(
+                "영어 발표 준비",
+                120,
+                LocalDate.of(2026, 10, 27),
+                4
+            )
+        );
+
+        // 마감 수요일, 중요도 5, 180분
+        flexibleSchedules.add(
+            new FlexibleSchedule(
+                "네트워크 보고서",
+                180,
+                LocalDate.of(2026, 10, 28),
+                5
+            )
+        );
+
+        // 위 일정과 deadline/importance 동일
+        // 120분이므로 180분짜리보다 뒤에 와야 함
+        flexibleSchedules.add(
+            new FlexibleSchedule(
+                "자료구조 복습",
+                120,
+                LocalDate.of(2026, 10, 28),
+                5
+            )
+        );
+
+        // 짧은 일정
+        flexibleSchedules.add(
+            new FlexibleSchedule(
+                "영단어",
+                30,
+                LocalDate.of(2026, 10, 29),
+                2
+            )
+        );
+
+        // 긴 일정
+        flexibleSchedules.add(
+            new FlexibleSchedule(
+                "프로젝트 개발",
+                300,
+                LocalDate.of(2026, 10, 30),
+                5
+            )
+        );
+
+        // 너무 길어서 08~18 범위의 단일 FreeSlot에는
+        // 들어갈 가능성이 거의 없음
+        flexibleSchedules.add(
+            new FlexibleSchedule(
+                "초대형 과제",
+                600,
+                LocalDate.of(2026, 11, 1),
+                5
+            )
+        );
+
+        // 마감일이 이미 지남
+        flexibleSchedules.add(
+            new FlexibleSchedule(
+                "기한 지난 과제",
+                60,
+                LocalDate.of(2026, 10, 25),
+                5
+            )
+        );
+
+        // 완료된 일정
+        FlexibleSchedule completed =
+            new FlexibleSchedule(
+                "완료한 과제",
+                120,
+                LocalDate.of(2026, 10, 27),
+                5
+            );
+
+        completed.toggleCompleted();
+
+        flexibleSchedules.add(completed);
+
+
+        // =====================================================
+        // Auto Schedule
+        // =====================================================
+
+        WeeklySchedule result =
+            autoScheduler.autoSchedule(
+                weekStart,
+                dayStart,
+                dayEnd,
+                fixedSchedules,
+                flexibleSchedules,
+                blockedTimes
+            );
+
+
+        // =====================================================
+        // 결과 출력
+        // =====================================================
+
+        System.out.println();
+        System.out.println("========================================");
+        System.out.println("자동배치 성공");
+        System.out.println("========================================");
+
+        for (ScheduledTask task : result.getScheduledTasks()) {
+
+            FlexibleSchedule schedule =
+                task.getFlexibleSchedule();
+
+            System.out.println(
+                schedule.getName()
+                + " | "
+                + task.getDate()
+                + " "
+                + task.getDate().getDayOfWeek()
+                + " | "
+                + task.getStartTime()
+                + " ~ "
+                + task.getEndTime()
+                + " | "
+                + task.getDurationMinutes()
+                + "분"
+                + " | deadline: "
+                + schedule.getDeadline()
+                + " | 중요도: "
+                + schedule.getImportance()
+            );
+        }
+
+
+        System.out.println();
+        System.out.println("========================================");
+        System.out.println("자동배치 실패");
+        System.out.println("========================================");
+
+        for (FlexibleSchedule schedule
+                : result.getUnscheduledTasks()) {
+
+            System.out.println(
+                schedule.getName()
+                + " | deadline: "
+                + schedule.getDeadline()
+                + " | "
+                + schedule.getEstimatedMinutes()
+                + "분"
+                + " | 중요도: "
+                + schedule.getImportance()
+            );
+        }
+
+
+        System.out.println();
+        System.out.println("========================================");
+
+        System.out.println(
+            "배치 성공 개수: "
+            + result.getScheduledTasks().size()
+        );
+
+        System.out.println(
+            "배치 실패 개수: "
+            + result.getUnscheduledTasks().size()
+        );
+
+        System.out.println("========================================");
+        
+>>>>>>> 2867760 (feat: implement automatic schedule placement algorithm)
             
         }
 }

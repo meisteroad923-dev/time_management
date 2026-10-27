@@ -12,8 +12,16 @@ import java.util.Set;
 
 import scheduler.model.BlockedTime;
 import scheduler.model.FixedSchedule;
+<<<<<<< HEAD
 import scheduler.model.RepeatType;
 import scheduler.model.TimeSlot;
+=======
+import scheduler.model.FlexibleSchedule;
+import scheduler.model.RepeatType;
+import scheduler.model.ScheduledTask;
+import scheduler.model.TimeSlot;
+import scheduler.model.WeeklySchedule;
+>>>>>>> 2867760 (feat: implement automatic schedule placement algorithm)
 
 import java.time.DayOfWeek;
 
@@ -109,6 +117,80 @@ public class AutoScheduler {
 
         return weeklyFreeSlots;
     }
+<<<<<<< HEAD
 
 
+=======
+//----------------------------------------------자동 배치 알고리즘 구현-----------------------------------------------------------------------
+    // 마감일, 중요도, 예상 시간이 긴 순서로 정렬
+    private List<FlexibleSchedule> sortFlexibleSchedule(List<FlexibleSchedule> flexibleSchedules){
+        List<FlexibleSchedule> schedulesToPlace = new ArrayList<>();
+
+        //완료된 유동 일정은 새로운 자동 배치에서 제거
+        for (FlexibleSchedule schedule: flexibleSchedules){
+            if (!schedule.isCompleted()) schedulesToPlace.add(schedule);
+        }
+
+        // 마감일이 빠른순 > 중요도가 높은순, 예상시간이 긴순으로 배치할 예정
+        schedulesToPlace.sort(Comparator.comparing(FlexibleSchedule::getDeadline)
+            .thenComparing(Comparator.comparingInt(FlexibleSchedule::getImportance).reversed())
+            .thenComparing(Comparator.comparingInt(FlexibleSchedule::getEstimatedMinutes).reversed()));
+
+        return schedulesToPlace;
+    }
+
+    //유동일정을 하나씩 배치
+    private ScheduledTask placeFlexibleSchedule(FlexibleSchedule schedule, LocalDate weekStart, Map<LocalDate, List<TimeSlot>> weeklyFreeSlots) {
+        //월-일까지 순서대로 꺼내면서 배치
+        for (int i = 0; i < 7; i++) {
+            LocalDate date = weekStart.plusDays(i);
+
+            //현재 날짜가 deadLine이후면 종료
+            if (date.isAfter(schedule.getDeadline())) break;
+
+            List<TimeSlot> slots = weeklyFreeSlots.get(date);   //해당 날짜의 빈 시간 리스트를 꺼냄
+            //슬롯의 빈칸을 하나씩 꺼내서 유동일정이 들어갈 공간이 있음 바로 넣음
+            for (int j = 0; j < slots.size(); j++){
+                TimeSlot slot = slots.get(j);
+                
+                if ( slot.getDurationMinutes() >= schedule.getEstimatedMinutes()){
+                    LocalTime taskStart = slot.getStartTime();
+                    LocalTime taskEnd = taskStart.plusMinutes(schedule.getEstimatedMinutes());
+
+                    ScheduledTask scheduledTask = new ScheduledTask(schedule, date, taskStart, taskEnd);
+                    
+                    //슬롯 사이즈와 스케줄 사이즈가 일치한 경우
+                    if (taskEnd.equals(slot.getEndTime())){
+                        slots.remove(j);
+                    }
+                    else{   //슬롯 사이즈가 스케줄 사이즈보다 큰 경우
+                        slots.set(j, new TimeSlot(date, taskEnd, slot.getEndTime()));
+                    }
+                    return scheduledTask;
+                }
+            }
+        }
+         return null;
+    }
+
+    // 고정 일정 및 블록시간대를 제외한 빈 시간에 유동일정을 우선순위에 따라 자동 배치
+    public WeeklySchedule autoSchedule(LocalDate weekStart, LocalTime dayStart, LocalTime dayEnd, 
+                                        List<FixedSchedule> fixedSchedules, List<FlexibleSchedule> flexibleSchedules, List<BlockedTime> blockedTimes){
+        // 고정 일정과 블록시간대 기준으로 유동일정 배치 가능 시간대를 계싼                                    
+        Map<LocalDate, List<TimeSlot>> weeklyFreeSlots = createWeeklyFreeSlots(weekStart, dayStart, dayEnd, fixedSchedules, blockedTimes);
+        // 완료되지 않은 유동일정을 정렬
+        List<FlexibleSchedule> schedulesToPlace = sortFlexibleSchedule(flexibleSchedules);
+        // 자동배치 결과 저장 자료구조 객체 생성
+        WeeklySchedule weeklySchedule = new WeeklySchedule(weekStart);
+        // 유동일정 배치
+        for (FlexibleSchedule schedule: schedulesToPlace){
+            ScheduledTask scheduledTask = placeFlexibleSchedule(schedule, weekStart, weeklyFreeSlots);
+
+            // 배치가 성공하면 결과 자료구조에 추가
+            if (scheduledTask != null) weeklySchedule.addScheduledTask(scheduledTask);
+            else weeklySchedule.addUnscheduledTask(schedule);
+        }
+        return weeklySchedule;
+    }
+>>>>>>> 2867760 (feat: implement automatic schedule placement algorithm)
 }
