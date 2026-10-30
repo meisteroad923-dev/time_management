@@ -9,17 +9,15 @@ public class FlexibleSchedule {
     private int importance;
     private boolean completed;
     //최초 생성용
-    public FlexibleSchedule(String name, int estimatedMinutes, LocalDate deadline,
-                            int importance){
-        this.name = name;
+    public FlexibleSchedule(String name, int estimatedMinutes, LocalDate deadline, int importance){
+        this.name = name; 
         this.estimatedMinutes = estimatedMinutes;
         this.deadline = deadline;
         this.importance = importance;
         this.completed =false;
     }
     //수정용
-    public FlexibleSchedule(String name, int estimatedMinutes, LocalDate deadline,
-                            int importance, boolean completed){
+    public FlexibleSchedule(String name, int estimatedMinutes, LocalDate deadline, int importance, boolean completed){
         this.name = name;
         this.estimatedMinutes = estimatedMinutes;
         this.deadline = deadline;

@@ -23,7 +23,17 @@ import scheduler.model.WeeklySchedule;
 import java.time.DayOfWeek;
 
 public class AutoScheduler {
-    //일정이 특정 날짜에 실제로 적용되는 일정인지 판단
+    /**
+     * 일정의 적용 기간과 반복 유형을 기준으로
+     * 특정 날짜에 일정이 적용되는지 판단한다.
+     *
+     * @param startDate 일정 적용 시작일
+     * @param endDate 일정 적용 종료일
+     * @param repeatType 반복 유형
+     * @param repeatDays 반복 요일 집합
+     * @param targetDate 확인할 날짜
+     * @return 해당 날짜에 일정이 적용되면 true
+     */
     private boolean appliesToDate(LocalDate scheduleDate, RepeatType repeatType, Set<DayOfWeek> repeatDays, LocalDate targetDate){
         if (repeatType == RepeatType.NONE){
             return scheduleDate.equals(targetDate);
