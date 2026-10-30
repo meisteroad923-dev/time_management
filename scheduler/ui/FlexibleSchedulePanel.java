@@ -77,7 +77,9 @@ public class FlexibleSchedulePanel extends JPanel {
         formPanel.add(new JLabel("중요도"));
         formPanel.add(importanceBox);
 
-        container.add( formPanel, BorderLayout.CENTER);
+        JPanel formWrapper = new JPanel(new BorderLayout());
+        formWrapper.add(formPanel, BorderLayout.NORTH);
+        container.add(formWrapper, BorderLayout.CENTER);
 
         JPanel buttonPanel = new JPanel();
         JButton addButton = new JButton("등록");

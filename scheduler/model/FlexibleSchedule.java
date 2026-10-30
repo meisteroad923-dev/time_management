@@ -1,13 +1,16 @@
 package scheduler.model;
 
 import java.time.LocalDate;
+import java.io.Serializable;
 
-public class FlexibleSchedule {
+public class FlexibleSchedule implements Serializable {
     private String name;
     private int estimatedMinutes;
     private LocalDate deadline;
     private int importance;
     private boolean completed;
+    private static final long serialVersionUID = 1L;
+    
     //최초 생성용
     public FlexibleSchedule(String name, int estimatedMinutes, LocalDate deadline, int importance){
         this.name = name; 

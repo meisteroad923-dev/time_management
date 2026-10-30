@@ -23,7 +23,8 @@ public class BlockedTimePanel extends JPanel {
     private ScheduleManager scheduleManager;
 
     private JTextField nameField;
-    private JTextField dateField;
+    private JTextField startDateField;
+    private JTextField endDateField;
     private JTextField startTimeField;
     private JTextField endTimeField;
 
@@ -74,7 +75,8 @@ public class BlockedTimePanel extends JPanel {
         JPanel formPanel = new JPanel(new GridLayout(0, 2, 10, 15));
 
         nameField = new JTextField();
-        dateField = new JTextField();
+        startDateField = new JTextField();
+        endDateField =new JTextField();
         startTimeField = new JTextField();
         endTimeField = new JTextField();
 
@@ -83,8 +85,11 @@ public class BlockedTimePanel extends JPanel {
         formPanel.add(new JLabel("시간대 이름"));
         formPanel.add(nameField);
 
-        formPanel.add(new JLabel("날짜 (yyyy-MM-dd)"));
-        formPanel.add(dateField);
+        formPanel.add(new JLabel("적용 시작일 (yyyy-MM-dd)"));
+        formPanel.add(startDateField);
+
+        formPanel.add(new JLabel("적용 종료일 (yyyy-MM-dd)"));
+        formPanel.add(endDateField);
 
         formPanel.add(new JLabel("시작 시간 (HH:mm)"));
         formPanel.add(startTimeField);
@@ -117,7 +122,9 @@ public class BlockedTimePanel extends JPanel {
         formPanel.add(new JLabel("반복 요일"));
         formPanel.add(dayPanel);
 
-        container.add(formPanel, BorderLayout.CENTER);
+        JPanel formWrapper = new JPanel(new BorderLayout());
+        formWrapper.add(formPanel, BorderLayout.NORTH);
+        container.add(formWrapper, BorderLayout.CENTER);
 
         // 등록, 수정 버튼 생성
         JPanel buttonPanel = new JPanel();
@@ -175,8 +182,8 @@ public class BlockedTimePanel extends JPanel {
                             boolean isSelected, boolean cellHasFocus) {
                         super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
                         BlockedTime blockedTime = (BlockedTime) value;
-                        setText(blockedTime.getName() + " | " + blockedTime.getStartTime() + " ~ "
-                                + blockedTime.getEndTime() + " | " + blockedTime.getRepeatType());
+                        setText(blockedTime.getName() + " | " + blockedTime.getStartDate() + "~" + blockedTime.getEndDate() + " | "
+                                + blockedTime.getStartTime() + " ~ " + blockedTime.getEndTime() + " | " + blockedTime.getRepeatType());
 
                         return this;
                     }
@@ -193,7 +200,8 @@ public class BlockedTimePanel extends JPanel {
                 return;
 
             nameField.setText(blockedTime.getName());
-            dateField.setText(blockedTime.getDate().toString());
+            startDateField.setText(blockedTime.getStartDate().toString());
+            endDateField.setText(blockedTime.getEndDate().toString());
             startTimeField.setText(blockedTime.getStartTime().toString());
             endTimeField.setText(blockedTime.getEndTime().toString());
             repeatTypeBox.setSelectedItem(blockedTime.getRepeatType());
@@ -230,7 +238,7 @@ public class BlockedTimePanel extends JPanel {
             clearFields();
             JOptionPane.showMessageDialog(this,"배치 금지 시간이 등록되었습니다.");
         } catch (Exception e) {
-            JOptionPane.showMessageDialog( this, "입력값을 확인하세요.\n" + "날짜: yyyy-MM-dd\n" + "시간: HH:mm");
+            JOptionPane.showMessageDialog( this, "입력값을 확인하세요.\n" + "시작/종료 날짜: yyyy-MM-dd\n" + "시간: HH:mm");
         }
     }
 
@@ -282,47 +290,39 @@ public class BlockedTimePanel extends JPanel {
     }
 
     /**
-     * 입력 필드의 값을 읽어 BlockedTime 객체를 생성한다.
+     * 입력된 정보를 이용하여 BlockedTime 객체를 생성한다.
      *
-     * NONE 유형은 실제 날짜가 필요하며,
-     * WEEKLY 유형은 하나 이상의 반복 요일을 선택해야 한다.
-     *
-     * @return 입력값을 기반으로 생성된 BlockedTime 객체
+     * @return 입력값을 기반으로 생성된 배치 금지 시간
      * @throws IllegalArgumentException 입력값이 올바르지 않은 경우
      */
     private BlockedTime createBlockedTimeFromInput() {
-        String name = nameField.getText().trim();
-        if (name.isEmpty()) {
-            throw new IllegalArgumentException();
-        }
+        String name =  nameField.getText().trim();
+        if (name.isEmpty()) throw new IllegalArgumentException();
+
+        RepeatType repeatType =(RepeatType) repeatTypeBox.getSelectedItem();
+
+        // 적용 기간 입력
+        LocalDate startDate =LocalDate.parse(startDateField.getText().trim());
+        LocalDate endDate =LocalDate.parse(endDateField.getText().trim());
+
+        // 시작일 > 종료일이면 잘못된 입력
+        if (startDate.isAfter(endDate)) throw new IllegalArgumentException();
         
-        RepeatType repeatType = (RepeatType) repeatTypeBox.getSelectedItem();
-        LocalDate date;
+        // NONE은 하루짜리 일정이므로 시작일과 종료일이 같아야 함
+        if (repeatType == RepeatType.NONE && !startDate.equals(endDate))throw new IllegalArgumentException();
 
-        if (repeatType == RepeatType.NONE) {
-            date = LocalDate.parse(dateField.getText().trim());
-        } else {
-            if (dateField.getText().trim().isEmpty()) {
-                date = LocalDate.now();
-            } else {
-                date = LocalDate.parse(dateField.getText().trim());
-            }
-        }
+        LocalTime startTime =LocalTime.parse(startTimeField.getText().trim());
+        LocalTime endTime =LocalTime.parse(endTimeField.getText().trim());
 
-        LocalTime startTime = LocalTime.parse(startTimeField.getText().trim());
-        LocalTime endTime = LocalTime.parse(endTimeField.getText().trim());
-
-        if (!startTime.isBefore(endTime)) {
-            throw new IllegalArgumentException();
-        }
+        // 종료시간은 시작시간보다 늦어야 함
+        if (!startTime.isBefore(endTime))  throw new IllegalArgumentException();
 
         Set<DayOfWeek> repeatDays = getSelectedRepeatDays();
 
-        if (repeatType == RepeatType.WEEKLY&& repeatDays.isEmpty()) {
-            throw new IllegalArgumentException();
-        }
+        // WEEKLY는 최소 한 요일 필요
+        if (repeatType == RepeatType.WEEKLY && repeatDays.isEmpty()) throw new IllegalArgumentException();
 
-        return new BlockedTime( name, date, startTime, endTime, repeatType, repeatDays);
+        return new BlockedTime(name, startDate, endDate, startTime, endTime, repeatType, repeatDays);
     }
 
     /**
@@ -377,7 +377,8 @@ public class BlockedTimePanel extends JPanel {
     private void clearFields() {
 
         nameField.setText("");
-        dateField.setText("");
+        startDateField.setText("");
+        endDateField.setText("");
         startTimeField.setText("");
         endTimeField.setText("");
 

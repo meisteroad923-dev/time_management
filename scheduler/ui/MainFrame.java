@@ -1,12 +1,12 @@
 package scheduler.ui;
 
-
 import javax.swing.*;
+import java.awt.*;
 
 import scheduler.service.AutoScheduler;
 import scheduler.service.ScheduleManager;
-
-import java.awt.*;
+import scheduler.service.DataStorage;
+import scheduler.service.PrioritySchedulingStrategy;
 
 public class MainFrame extends JFrame {
     private ScheduleManager scheduleManager;
@@ -18,8 +18,8 @@ public class MainFrame extends JFrame {
     private SchedulePanel schedulePanel;
 
     public MainFrame(){
-        scheduleManager = new ScheduleManager();
-        autoScheduler = new AutoScheduler();
+        scheduleManager = DataStorage.load();
+        autoScheduler = new AutoScheduler(new PrioritySchedulingStrategy());        //자동 배치 알고리즘 변경 하려면 여기서
 
         setTitle("Time management scheduler");
         setSize(1200, 750);

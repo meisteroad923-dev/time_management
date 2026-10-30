@@ -8,7 +8,9 @@ import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
 import java.time.temporal.TemporalAdjusters;
-import java.util.List;
+
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Set;
 
 import scheduler.model.BlockedTime;
@@ -51,6 +53,9 @@ public class SchedulePanel extends JPanel {
     // 가장 최근 자동배치 결과
     private WeeklySchedule weeklyResult;
 
+    private Map<LocalDate, WeeklySchedule> weeklyResults = new HashMap<>(); //주별 결과 보관함
+    private long lastDataVersion;
+
     /**
      * 주간 일정표 화면을 생성한다.
      *
@@ -60,6 +65,7 @@ public class SchedulePanel extends JPanel {
     public SchedulePanel(ScheduleManager scheduleManager, AutoScheduler autoScheduler) {
         this.scheduleManager = scheduleManager;
         this.autoScheduler = autoScheduler;
+        this.lastDataVersion = scheduleManager.getDataVersion();
 
         weekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));   //이번주 시작 날을 월요일로 고정
         setLayout(new BorderLayout(15, 15));
@@ -168,7 +174,6 @@ public class SchedulePanel extends JPanel {
      */
     private void moveWeek(int amount) {
         weekStart = weekStart.plusWeeks(amount);
-        weeklyResult = null;
         refreshAll();
     }
 
@@ -179,6 +184,7 @@ public class SchedulePanel extends JPanel {
      */
     private void runAutoSchedule() {
         weeklyResult = autoScheduler.autoSchedule(weekStart, DAY_START, DAY_END, scheduleManager.getFixedSchedule(), scheduleManager.getFlexibleSchedule(), scheduleManager.getBlockedTime());
+        weeklyResults.put(weekStart, weeklyResult);
 
         refreshScheduleTable();
         refreshFlexibleList();
@@ -230,14 +236,14 @@ public class SchedulePanel extends JPanel {
 
         // 고정 일정
         for (FixedSchedule schedule : scheduleManager.getFixedSchedule()) {
-            if (appliesToDate(schedule.getDate(), schedule.getRepeatType(), schedule.getRepeatDays(), date) && isTimeIncluded(time, schedule.getStartTime(), schedule.getEndTime())) {
+            if (appliesToDate(schedule.getStartDate(), schedule.getEndDate(),schedule.getRepeatType(), schedule.getRepeatDays(), date) && isTimeIncluded(time, schedule.getStartTime(), schedule.getEndTime())) {
                 appendText(text, "[고정] " + schedule.getName());
             }
         }
         // 배치 금지 시간
         for (BlockedTime blockedTime : scheduleManager.getBlockedTime()) {
 
-            if (appliesToDate(blockedTime.getDate(), blockedTime.getRepeatType(), blockedTime.getRepeatDays(), date) && isTimeIncluded(time, blockedTime.getStartTime(), blockedTime.getEndTime())) {
+            if (appliesToDate(blockedTime.getStartDate(), blockedTime.getEndDate(),blockedTime.getRepeatType(), blockedTime.getRepeatDays(), date) && isTimeIncluded(time, blockedTime.getStartTime(), blockedTime.getEndTime())) {
                 appendText(text, "[금지] " + blockedTime.getName());
             }
         }
@@ -257,16 +263,26 @@ public class SchedulePanel extends JPanel {
      * 일정의 반복 유형을 기준으로 해당 일정이
      * 특정 날짜에 적용되는지 판단한다.
      *
-     * @param scheduleDate 일정에 저장된 날짜
-     * @param repeatType   일정의 반복 유형
-     * @param repeatDays   반복 요일 집합
-     * @param targetDate   확인할 날짜
-     * @return 해당 날짜에 일정이 적용되면 true
-     */
-    private boolean appliesToDate(LocalDate scheduleDate, RepeatType repeatType, Set<DayOfWeek> repeatDays, LocalDate targetDate) {
-        if (repeatType == RepeatType.NONE) return scheduleDate.equals(targetDate);
+     * @param startDate 일정 적용 시작일
+    * @param endDate 일정 적용 종료일
+    * @param repeatType 반복 유형
+    * @param repeatDays 반복 요일 집합
+    * @param targetDate 확인할 날짜
+    * @return 해당 날짜에 일정이 적용되면 true
+    */
+    private boolean appliesToDate(LocalDate startDate, LocalDate endDate, RepeatType repeatType, Set<DayOfWeek> repeatDays, LocalDate targetDate) {
+        // 적용 기간 밖
+        if (targetDate.isBefore(startDate) || targetDate.isAfter(endDate)) return false;
+        
+        // 한 번만 적용
+        if (repeatType == RepeatType.NONE) return targetDate.equals(startDate);
+
+        // 기간 내 매일 적용
         if (repeatType == RepeatType.DAILY) return true;
+
+        // 기간 내 선택된 요일에 적용
         if (repeatType == RepeatType.WEEKLY) return repeatDays.contains(targetDate.getDayOfWeek());
+
         return false;
     }
 
@@ -279,7 +295,8 @@ public class SchedulePanel extends JPanel {
      * @return 일정 시간 범위에 포함되면 true
      */
     private boolean isTimeIncluded(LocalTime time, LocalTime startTime, LocalTime endTime) {
-        return !time.isBefore(startTime) && time.isBefore(endTime);
+        LocalTime cellEnd = time.plusMinutes(30);
+        return time.isBefore(endTime) && startTime.isBefore(cellEnd);
     }
 
     /**
@@ -311,6 +328,20 @@ public class SchedulePanel extends JPanel {
      * 모두 최신 상태로 갱신한다.
      */
     public void refreshAll() {
+        long currentVersion = scheduleManager.getDataVersion();
+
+        // 고정/금지/유동 일정이 실제로 변경된 경우에만
+        // 기존 자동배치 결과를 무효화한다.
+        if (currentVersion != lastDataVersion) {
+            weeklyResults.clear();
+            weeklyResult = null;
+
+            lastDataVersion = currentVersion;
+        }
+
+        // 현재 보고 있는 주의 기존 자동배치 결과 복원
+        weeklyResult = weeklyResults.get(weekStart);
+        
         LocalDate weekEnd = weekStart.plusDays(6);
         weekLabel.setText(weekStart + " ~ " + weekEnd);
 
