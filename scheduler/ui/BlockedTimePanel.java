@@ -2,9 +2,13 @@ package scheduler.ui;
 
 import javax.swing.*;
 import java.awt.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.LocalTime;
+
 import java.util.EnumSet;
 import java.util.Set;
 
@@ -29,7 +33,6 @@ public class BlockedTimePanel extends JPanel {
     private JTextField endTimeField;
 
     private JComboBox<RepeatType> repeatTypeBox;
-
     private JCheckBox mondayBox;
     private JCheckBox tuesdayBox;
     private JCheckBox wednesdayBox;
@@ -57,6 +60,7 @@ public class BlockedTimePanel extends JPanel {
         add(createBlockedTimeListPanel(), BorderLayout.EAST);
 
         refreshList();
+        clearFields();
     }
 
     /**
@@ -81,6 +85,32 @@ public class BlockedTimePanel extends JPanel {
         endTimeField = new JTextField();
 
         repeatTypeBox = new JComboBox<>(RepeatType.values());
+
+        startDateField.getDocument().addDocumentListener(new DocumentListener() {
+            /**
+             * {@inheritDoc}
+             */
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                syncEndDate();
+            }
+            /**
+             * {@inheritDoc}
+             */
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                syncEndDate();
+            }
+            /**
+             * {@inheritDoc}
+             */
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                syncEndDate();
+            }
+        });
+
+        repeatTypeBox.addActionListener(e -> updateDateFieldState());
 
         formPanel.add(new JLabel("시간대 이름"));
         formPanel.add(nameField);
@@ -143,6 +173,35 @@ public class BlockedTimePanel extends JPanel {
         container.add(buttonPanel, BorderLayout.SOUTH);
 
         return container;
+    }
+
+    /**
+     * 반복 유형이 NONE인 경우 종료일을 시작일과 동일하게 맞춘다.
+     */
+    private void syncEndDate() {
+
+        if (repeatTypeBox.getSelectedItem() == RepeatType.NONE) {
+            endDateField.setText(startDateField.getText());
+        }
+    }
+
+    /**
+     * 반복 유형에 따라 종료일 입력 필드의 사용 가능 여부를 변경한다.
+     *
+     * NONE인 경우 종료일을 시작일과 동일하게 설정하고
+     * 종료일 입력 필드를 비활성화한다.
+     */
+    private void updateDateFieldState() {
+
+        RepeatType repeatType =
+                (RepeatType) repeatTypeBox.getSelectedItem();
+
+        if (repeatType == RepeatType.NONE) {
+            endDateField.setText(startDateField.getText());
+            endDateField.setEnabled(false);
+        } else {
+            endDateField.setEnabled(true);
+        }
     }
 
     /**
@@ -246,7 +305,8 @@ public class BlockedTimePanel extends JPanel {
      * 현재 선택된 배치 금지 시간을
      * 입력된 새로운 정보로 수정한다.
      *
-     * 다른 일정과 충돌하는 경우 수정하지 않는다.
+     * 다른 고정 일정 또는 배치 금지 시간과 충돌하는 경우
+     * 수정하지 않는다.
      */
     private void updateBlockedTime() {
 
@@ -290,40 +350,38 @@ public class BlockedTimePanel extends JPanel {
     }
 
     /**
-     * 입력된 정보를 이용하여 BlockedTime 객체를 생성한다.
-     *
-     * @return 입력값을 기반으로 생성된 배치 금지 시간
-     * @throws IllegalArgumentException 입력값이 올바르지 않은 경우
-     */
-    private BlockedTime createBlockedTimeFromInput() {
-        String name =  nameField.getText().trim();
-        if (name.isEmpty()) throw new IllegalArgumentException();
+ * 입력된 정보를 이용하여 BlockedTime 객체를 생성한다.
+ *
+ * 반복 유형이 NONE인 경우 종료일은 시작일과 동일하게 자동 설정한다.
+ *
+ * @return 입력값을 기반으로 생성된 배치 금지 시간
+ * @throws IllegalArgumentException 입력값이 올바르지 않은 경우
+ */
+private BlockedTime createBlockedTimeFromInput() {
+    String name = nameField.getText().trim();
+    if (name.isEmpty()) throw new IllegalArgumentException();
+    
 
-        RepeatType repeatType =(RepeatType) repeatTypeBox.getSelectedItem();
+    RepeatType repeatType = (RepeatType) repeatTypeBox.getSelectedItem();
+    LocalDate startDate = LocalDate.parse(startDateField.getText().trim());
+    LocalDate endDate;
 
-        // 적용 기간 입력
-        LocalDate startDate =LocalDate.parse(startDateField.getText().trim());
-        LocalDate endDate =LocalDate.parse(endDateField.getText().trim());
-
-        // 시작일 > 종료일이면 잘못된 입력
+    if (repeatType == RepeatType.NONE) {
+        endDate = startDate;
+    } else {
+        endDate = LocalDate.parse(endDateField.getText().trim());
         if (startDate.isAfter(endDate)) throw new IllegalArgumentException();
-        
-        // NONE은 하루짜리 일정이므로 시작일과 종료일이 같아야 함
-        if (repeatType == RepeatType.NONE && !startDate.equals(endDate))throw new IllegalArgumentException();
-
-        LocalTime startTime =LocalTime.parse(startTimeField.getText().trim());
-        LocalTime endTime =LocalTime.parse(endTimeField.getText().trim());
-
-        // 종료시간은 시작시간보다 늦어야 함
-        if (!startTime.isBefore(endTime))  throw new IllegalArgumentException();
-
-        Set<DayOfWeek> repeatDays = getSelectedRepeatDays();
-
-        // WEEKLY는 최소 한 요일 필요
-        if (repeatType == RepeatType.WEEKLY && repeatDays.isEmpty()) throw new IllegalArgumentException();
-
-        return new BlockedTime(name, startDate, endDate, startTime, endTime, repeatType, repeatDays);
     }
+
+    LocalTime startTime = LocalTime.parse(startTimeField.getText().trim());
+    LocalTime endTime = LocalTime.parse(endTimeField.getText().trim());
+    if (!startTime.isBefore(endTime)) throw new IllegalArgumentException();
+    
+    Set<DayOfWeek> repeatDays = getSelectedRepeatDays();
+    if (repeatType == RepeatType.WEEKLY && repeatDays.isEmpty()) throw new IllegalArgumentException();
+    
+    return new BlockedTime(name, startDate, endDate, startTime, endTime, repeatType, repeatDays);
+}
 
     /**
      * 반복 요일 체크박스에서 선택된 요일을 수집한다.
@@ -377,12 +435,16 @@ public class BlockedTimePanel extends JPanel {
     private void clearFields() {
 
         nameField.setText("");
-        startDateField.setText("");
-        endDateField.setText("");
+
+        String today = LocalDate.now().toString();
+        startDateField.setText(today);
+        endDateField.setText(today);
+
         startTimeField.setText("");
         endTimeField.setText("");
 
         repeatTypeBox.setSelectedItem(RepeatType.NONE);
+        updateDateFieldState();
 
         mondayBox.setSelected(false);
         tuesdayBox.setSelected(false);

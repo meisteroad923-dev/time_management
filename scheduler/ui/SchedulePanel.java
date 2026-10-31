@@ -70,8 +70,12 @@ public class SchedulePanel extends JPanel {
         weekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));   //이번주 시작 날을 월요일로 고정
         setLayout(new BorderLayout(15, 15));
 
-        add(createWeekControlPanel(), BorderLayout.NORTH);
-        add(createScheduleTablePanel(), BorderLayout.CENTER);
+        JPanel scheduleArea = new JPanel(new BorderLayout());
+
+        scheduleArea.add(createWeekControlPanel(), BorderLayout.NORTH);
+        scheduleArea.add(createScheduleTablePanel(), BorderLayout.CENTER);
+
+        add(scheduleArea, BorderLayout.CENTER);
         add(createFlexibleListPanel(), BorderLayout.EAST);
 
         refreshAll();
@@ -84,19 +88,28 @@ public class SchedulePanel extends JPanel {
      * @return 주간 이동 제어 패널
      */
     private JPanel createWeekControlPanel() {
-        JPanel panel = new JPanel();
+        JPanel panel = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 5));
+
         JButton previousButton = new JButton("< 이전 주");
+        JButton currentWeekButton = new JButton("이번 주");
         JButton nextButton = new JButton("다음 주 >");
 
         weekLabel = new JLabel("", SwingConstants.CENTER);
         weekLabel.setFont( weekLabel.getFont().deriveFont(Font.BOLD, 18f));
 
         previousButton.addActionListener(e -> moveWeek(-1));
+        currentWeekButton.addActionListener(e -> moveToCurrentWeek());
         nextButton.addActionListener(e -> moveWeek(1));
 
         panel.add(previousButton);
-        panel.add(weekLabel);
+        panel.add(currentWeekButton);
         panel.add(nextButton);
+
+        panel.add(Box.createHorizontalStrut(15));
+        panel.add(weekLabel);
+        panel.add(Box.createHorizontalStrut(15));
+
+        
 
         return panel;
     }
@@ -110,6 +123,13 @@ public class SchedulePanel extends JPanel {
     private JPanel createScheduleTablePanel() {
         JPanel panel = new JPanel(new BorderLayout());
         tableModel = new DefaultTableModel() {
+            /**
+             * 주간 일정표의 셀을 사용자가 직접 수정할 수 없도록 설정한다.
+             *
+             * @param row 확인할 행 인덱스
+             * @param column 확인할 열 인덱스
+             * @return 항상 false
+             */
             @Override
             public boolean isCellEditable(int row, int column) {
                 return false;
@@ -142,17 +162,29 @@ public class SchedulePanel extends JPanel {
         flexibleList = new JList<>(flexibleListModel);
 
         flexibleList.setCellRenderer(new DefaultListCellRenderer() {
-                    @Override
-                    public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
-                        super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-                        FlexibleSchedule schedule = (FlexibleSchedule) value;
+            /**
+             * FlexibleSchedule 객체를 유동 일정 목록에 표시할 문자열로 변환한다.
+             *
+             * 일정 이름, 마감일, 예상 소요 시간 및 완료 상태를 표시한다.
+             *
+             * @param list 목록 컴포넌트
+             * @param value 표시할 FlexibleSchedule 객체
+             * @param index 항목 인덱스
+             * @param isSelected 항목 선택 여부
+             * @param cellHasFocus 포커스 여부
+             * @return 화면에 표시할 컴포넌트
+             */
+            @Override
+            public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+                super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                FlexibleSchedule schedule = (FlexibleSchedule) value;
 
-                        String completed = schedule.isCompleted()? "완료": "미완료";
-                        setText(schedule.getName()+ " | "+ schedule.getDeadline()+ " | "+ schedule.getEstimatedMinutes()+ "분 | "+ completed);
+                String completed = schedule.isCompleted()? "완료": "미완료";
+                setText(schedule.getName()+ " | "+ schedule.getDeadline()+ " | "+ schedule.getEstimatedMinutes()+ "분 | "+ completed);
 
-                        return this;
-                    }
-                });
+                return this;
+            }
+        });
 
         JButton autoScheduleButton = new JButton("자동 배치 실행");
         autoScheduleButton.addActionListener(e -> runAutoSchedule());
@@ -167,8 +199,8 @@ public class SchedulePanel extends JPanel {
     /**
      * 현재 표시 중인 주를 이전 주 또는 다음 주로 이동한다.
      *
-     * 주가 변경되면 기존 자동 배치 결과를 제거하고
-     * 새로운 주간 일정표를 다시 표시한다.
+     * 이동한 주에 기존 자동 배치 결과가 존재하는 경우 해당 결과를 복원하여
+     * 주간 일정표에 다시 표시한다.
      *
      * @param amount 이동할 주의 수. -1은 이전 주, 1은 다음 주
      */
@@ -178,9 +210,24 @@ public class SchedulePanel extends JPanel {
     }
 
     /**
-     * 현재 화면에 표시 중인 주간에 대해 유동 일정 자동 배치를 실
+     * 현재 날짜가 포함된 주로 이동한다.
      *
-     * 고정 일정과 배치 금지 시간을 제외한 빈 시간에 완료되지 않은 유동 일정을 자동으로 배치한다.
+     * 해당 주에 기존 자동 배치 결과가 존재하면 함께 복원한다.
+     */
+    private void moveToCurrentWeek() {
+        weekStart = LocalDate.now().with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        refreshAll();
+    }
+
+
+    /**
+     * 현재 화면에 표시 중인 주간에 대해 유동 일정 자동 배치를 실행한다.
+     *
+     * 고정 일정과 배치 금지 시간을 제외한 빈 시간에
+     * 완료되지 않은 유동 일정을 자동으로 배치한다.
+     *
+     * 자동 배치 결과는 해당 주의 결과로 저장하여
+     * 이후 같은 주를 다시 표시할 때 재사용한다.
      */
     private void runAutoSchedule() {
         weeklyResult = autoScheduler.autoSchedule(weekStart, DAY_START, DAY_END, scheduleManager.getFixedSchedule(), scheduleManager.getFlexibleSchedule(), scheduleManager.getBlockedTime());
@@ -189,7 +236,34 @@ public class SchedulePanel extends JPanel {
         refreshScheduleTable();
         refreshFlexibleList();
 
-        JOptionPane.showMessageDialog(this,"자동 배치가 완료되었습니다.\n" + "배치 성공: " + weeklyResult.getScheduledTasks().size() + "개\n" + "배치 실패: " + weeklyResult.getUnscheduledTasks().size() + "개");
+        StringBuilder message = new StringBuilder();
+
+        message.append("자동 배치가 완료되었습니다.\n")
+            .append("배치 성공: ")
+            .append(weeklyResult.getScheduledTasks().size())
+            .append("개\n")
+            .append("배치 실패: ")
+            .append(weeklyResult.getUnscheduledTasks().size())
+            .append("개");
+
+        if (!weeklyResult.getUnscheduledTasks().isEmpty()) {
+            message.append("\n\n[배치되지 않은 일정]");
+            for (FlexibleSchedule schedule
+                    : weeklyResult.getUnscheduledTasks()) {
+
+                message.append("\n- ")
+                    .append(schedule.getName())
+                    .append(" | ")
+                    .append(schedule.getEstimatedMinutes())
+                    .append("분 | 마감 ")
+                    .append(schedule.getDeadline());
+            }
+        }
+
+        JOptionPane.showMessageDialog(
+                this,
+                message.toString()
+        );    
     }
 
     /**
@@ -287,12 +361,15 @@ public class SchedulePanel extends JPanel {
     }
 
     /**
-     * 특정 시간이 일정의 시작 시간 이상이고, 종료 시간보다 이전인지 판단한다.
+     * 30분 단위의 일정표 셀과 일정 시간 구간이 겹치는지 판단한다.
      *
-     * @param time      확인할 시간
+     * 예를 들어 09:20~09:40 일정은
+     * 09:00~09:30 셀과 09:30~10:00 셀 모두에 포함된다.
+     *
+     * @param time 일정표 셀의 시작 시간
      * @param startTime 일정 시작 시간
-     * @param endTime   일정 종료 시간
-     * @return 일정 시간 범위에 포함되면 true
+     * @param endTime 일정 종료 시간
+     * @return 일정과 해당 30분 셀이 겹치면 true, 아니면 false
      */
     private boolean isTimeIncluded(LocalTime time, LocalTime startTime, LocalTime endTime) {
         LocalTime cellEnd = time.plusMinutes(30);

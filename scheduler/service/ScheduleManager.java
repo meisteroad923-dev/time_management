@@ -14,6 +14,13 @@ import scheduler.model.BlockedTime;
 
 import java.io.Serializable;
 
+/**
+ * 애플리케이션의 일정 데이터를 관리하는 서비스 클래스이다.
+ *
+ * 고정 일정, 유동 일정, 배치 금지 시간의 등록·조회·수정·삭제를 담당하며,
+ * 일정 간 충돌 검사와 유동 일정의 예상 소요 시간 보정,
+ * 완료 상태 변경 및 데이터 저장 기능을 제공한다.
+ */
 public class ScheduleManager implements Serializable {
     private static final long serialVersionUID = 1L;
     private List<FixedSchedule> fixedSchedules;
@@ -21,21 +28,44 @@ public class ScheduleManager implements Serializable {
     private List<BlockedTime> blockedTimes;
     private long dataVersion = 0;
 
+    /**
+     * 비어 있는 일정 목록을 가진 ScheduleManager를 생성한다.
+     *
+     * 고정 일정, 유동 일정, 배치 금지 시간 목록을
+     * 각각 빈 리스트로 초기화한다.
+     */
     public ScheduleManager() {
         fixedSchedules = new ArrayList<>();
         flexibleSchedules = new ArrayList<>();
         blockedTimes = new ArrayList<>();
     }
 
+    /**
+     * 새로운 고정 일정을 등록하고 변경된 데이터를 저장한다.
+     *
+     * @param schedule 등록할 고정 일정
+     */
     public void addFixedSchedule(FixedSchedule schedule) {
         fixedSchedules.add(schedule);
         saveData();
     }
 
+    /**
+     * 등록된 고정 일정 목록을 반환한다.
+     *
+     * @return 고정 일정 목록
+     */
     public List<FixedSchedule> getFixedSchedule() {
         return fixedSchedules;
     }
 
+    /**
+     * 새로운 유동 일정을 등록하고 변경된 데이터를 저장한다.
+     *
+     * 예상 소요 시간은 등록 전에 30분 단위로 올림하여 보정한다.
+     *
+     * @param schedule 등록할 유동 일정
+     */
     public void addFlexibleSchedule(FlexibleSchedule schedule) {
         int adjustedMinutes =adjustEstimatedTime(schedule.getEstimatedMinutes());
         schedule.setEstimatedMinutes(adjustedMinutes);
@@ -44,19 +74,42 @@ public class ScheduleManager implements Serializable {
         saveData();
     }
 
+    /**
+     * 등록된 유동 일정 목록을 반환한다.
+     *
+     * @return 유동 일정 목록
+     */
     public List<FlexibleSchedule> getFlexibleSchedule() {
         return flexibleSchedules;
     }
 
+    /**
+     * 새로운 배치 금지 시간을 등록하고 변경된 데이터를 저장한다.
+     *
+     * @param schedule 등록할 배치 금지 시간
+     */
     public void addBlockedTime(BlockedTime schedule) {
         blockedTimes.add(schedule);
         saveData();
     }
 
+    /**
+     * 등록된 배치 금지 시간 목록을 반환한다.
+     *
+     * @return 배치 금지 시간 목록
+     */
     public List<BlockedTime> getBlockedTime() {
         return blockedTimes;
     }
 
+    /**
+     * 지정된 고정 일정을 삭제한다.
+     *
+     * 삭제에 성공한 경우 변경된 데이터를 저장한다.
+     *
+     * @param schedule 삭제할 고정 일정
+     * @return 삭제에 성공하면 true, 대상 일정이 없으면 false
+     */
     public boolean removeFixedSchedule(FixedSchedule schedule) {
         boolean removed = fixedSchedules.remove(schedule);
         if (removed)
@@ -64,6 +117,14 @@ public class ScheduleManager implements Serializable {
         return removed;
     }
 
+    /**
+     * 지정된 유동 일정을 삭제한다.
+     *
+     * 삭제에 성공한 경우 변경된 데이터를 저장한다.
+     *
+     * @param schedule 삭제할 유동 일정
+     * @return 삭제에 성공하면 true, 대상 일정이 없으면 false
+     */
     public boolean removeFlexibleSchedule(FlexibleSchedule schedule) {
         boolean removed = flexibleSchedules.remove(schedule);
         if (removed)
@@ -71,6 +132,14 @@ public class ScheduleManager implements Serializable {
         return removed;
     }
 
+    /**
+     * 지정된 배치 금지 시간을 삭제한다.
+     *
+     * 삭제에 성공한 경우 변경된 데이터를 저장한다.
+     *
+     * @param blockedTime 삭제할 배치 금지 시간
+     * @return 삭제에 성공하면 true, 대상 시간이 없으면 false
+     */
     public boolean removeBlockedTime(BlockedTime blockedTime) {
         boolean removed = blockedTimes.remove(blockedTime);
         if (removed)
@@ -78,6 +147,16 @@ public class ScheduleManager implements Serializable {
         return removed;
     }
 
+    /**
+     * 기존 고정 일정을 새로운 고정 일정으로 수정한다.
+     *
+     * 수정 대상이 존재하지 않거나 새로운 일정이 다른 일정과
+     * 충돌하는 경우 수정하지 않는다.
+     *
+     * @param oldSchedule 수정할 기존 고정 일정
+     * @param newSchedule 변경할 새로운 고정 일정
+     * @return 수정에 성공하면 true, 실패하면 false
+     */
     public boolean updateFixedSchedule(FixedSchedule oldSchedule, FixedSchedule newSchedule) {
         int index = fixedSchedules.indexOf(oldSchedule);
 
@@ -91,6 +170,16 @@ public class ScheduleManager implements Serializable {
         return true;
     }
 
+    /**
+     * 기존 유동 일정을 새로운 유동 일정으로 수정한다.
+     *
+     * 수정할 유동 일정의 예상 소요 시간은
+     * 30분 단위로 올림하여 보정한다.
+     *
+     * @param oldSchedule 수정할 기존 유동 일정
+     * @param newSchedule 변경할 새로운 유동 일정
+     * @return 수정에 성공하면 true, 대상 일정이 없으면 false
+     */
     public boolean updateFlexibleSchedule(FlexibleSchedule oldSchedule, FlexibleSchedule newSchedule) {
         int index = flexibleSchedules.indexOf(oldSchedule);
         if (index == -1)
@@ -103,6 +192,16 @@ public class ScheduleManager implements Serializable {
         return true;
     }
 
+    /**
+     * 기존 배치 금지 시간을 새로운 배치 금지 시간으로 수정한다.
+     *
+     * 수정 대상이 존재하지 않거나 새로운 시간이 다른 일정과
+     * 충돌하는 경우 수정하지 않는다.
+     *
+     * @param oldBlockedTime 수정할 기존 배치 금지 시간
+     * @param newBlockedTime 변경할 새로운 배치 금지 시간
+     * @return 수정에 성공하면 true, 실패하면 false
+     */
     public boolean updateBlockedTime(BlockedTime oldBlockedTime, BlockedTime newBlockedTime) {
         int index = blockedTimes.indexOf(oldBlockedTime);
 
@@ -117,15 +216,26 @@ public class ScheduleManager implements Serializable {
     }
 
     /**
-    * 일정 데이터의 현재 변경 버전을 반환한다.
-    *
-    * @return 데이터 변경 버전
-    */
+     * 일정 데이터의 현재 변경 버전을 반환한다.
+     *
+     * @return 데이터 변경 버전
+     */
     public long getDataVersion() {
         return dataVersion;
     }
 
-    // 두 일정의 시작, 종료 시간을 받아서 겹치는지 확인
+    /**
+     * 두 시간 구간이 서로 겹치는지 확인한다.
+     *
+     * 한 일정의 종료 시간과 다른 일정의 시작 시간이 같은 경우에는
+     * 서로 겹치지 않는 것으로 판단한다.
+     *
+     * @param start1 첫 번째 시간 구간의 시작 시간
+     * @param end1 첫 번째 시간 구간의 종료 시간
+     * @param start2 두 번째 시간 구간의 시작 시간
+     * @param end2 두 번째 시간 구간의 종료 시간
+     * @return 두 시간 구간이 겹치면 true, 아니면 false
+     */
     private boolean isTimeOverlap(LocalTime start1, LocalTime end1, LocalTime start2, LocalTime end2) {
         return start1.isBefore(end2) && start2.isBefore(end1);
     }
@@ -134,12 +244,12 @@ public class ScheduleManager implements Serializable {
      * 일정의 적용 기간과 반복 유형을 기준으로
      * 특정 날짜에 일정이 적용되는지 판단한다.
      *
-     * @param startDate  일정 적용 시작일
-     * @param endDate    일정 적용 종료일
+     * @param startDate 일정 적용 시작일
+     * @param endDate 일정 적용 종료일
      * @param repeatType 반복 유형
      * @param repeatDays 반복 요일
      * @param targetDate 확인할 날짜
-     * @return 해당 날짜에 일정이 적용되면 true
+     * @return 해당 날짜에 일정이 적용되면 true, 아니면 false
      */
     private boolean appliesToDate(LocalDate startDate, LocalDate endDate, RepeatType repeatType,
             Set<DayOfWeek> repeatDays, LocalDate targetDate) {
@@ -158,12 +268,12 @@ public class ScheduleManager implements Serializable {
      * 두 일정의 적용 기간과 반복 조건을 비교하여
      * 실제로 겹치는 날짜가 존재하는지 확인한다.
      *
-     * @param startDate1  첫 번째 일정 시작일
-     * @param endDate1    첫 번째 일정 종료일
+     * @param startDate1 첫 번째 일정 시작일
+     * @param endDate1 첫 번째 일정 종료일
      * @param repeatType1 첫 번째 일정 반복 유형
      * @param repeatDays1 첫 번째 일정 반복 요일
-     * @param startDate2  두 번째 일정 시작일
-     * @param endDate2    두 번째 일정 종료일
+     * @param startDate2 두 번째 일정 시작일
+     * @param endDate2 두 번째 일정 종료일
      * @param repeatType2 두 번째 일정 반복 유형
      * @param repeatDays2 두 번째 일정 반복 요일
      * @return 두 일정이 같은 날짜에 적용되는 경우 true
@@ -233,7 +343,7 @@ public class ScheduleManager implements Serializable {
     }
 
     /**
-     * 새 배치금지 시간이 기존 고정 일정 또는 배치 금지 시간과
+     * 새 배치 금지 시간이 기존 고정 일정 또는 배치 금지 시간과
      * 충돌하는지 확인한다.
      *
      * @param newBlockedTime 새로 등록할 배치 금지 시간
@@ -339,7 +449,14 @@ public class ScheduleManager implements Serializable {
         return false;
     }
 
-    // 예상시간을 30분 단위로 보정
+    /**
+     * 예상 소요 시간을 30분 단위로 올림하여 보정한다.
+     *
+     * 예를 들어 31분은 60분, 61분은 90분으로 보정된다.
+     *
+     * @param estimatedTime 보정할 예상 소요 시간(분)
+     * @return 30분 단위로 보정된 예상 소요 시간(분)
+     */
     public int adjustEstimatedTime(int estimatedTime) {
         if (estimatedTime % 30 == 0)
             return (estimatedTime / 30) * 30;
@@ -347,12 +464,21 @@ public class ScheduleManager implements Serializable {
             return ((estimatedTime / 30) + 1) * 30;
     }
 
-    // 유동 일정의 완료 여부를 토글로 변경
+    /**
+     * 지정된 유동 일정의 완료 상태를 반대로 변경하고
+     * 변경된 데이터를 저장한다.
+     *
+     * @param schedule 완료 상태를 변경할 유동 일정
+     */
     public void updateCompletionStatus(FlexibleSchedule schedule) {
         schedule.toggleCompleted();
         saveData();
     }
 
+    /**
+     * 일정 데이터의 변경 버전을 증가시키고
+     * 현재 ScheduleManager 상태를 저장한다.
+     */
     private void saveData() {
         // 일정 데이터가 변경되었음을 기록
         dataVersion++;

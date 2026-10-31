@@ -10,7 +10,7 @@ import scheduler.model.BlockedTime;
 import scheduler.model.WeeklySchedule;
 
 /**
- * 유동 일정 자동 배치 알고리즘의 공통 인터페이스이다.
+ * 유동 일정, 자동 배치 알고리즘의 공통 인터페이스이다.
  *
  * 서로 다른 자동 배치 알고리즘을 동일한 방식으로
  * 교체하여 사용할 수 있도록 한다.
@@ -25,7 +25,7 @@ public interface SchedulingStrategy {
      * @param weekStart 배치할 주의 시작일
      * @param dayStart 하루 배치 시작 시간
      * @param dayEnd 하루 배치 종료 시간
-     * @return 자동 배치 결과
+     * @return 한 주의 자동 배치 결과
      */
     WeeklySchedule schedule(
             List<FlexibleSchedule> flexibleSchedules,

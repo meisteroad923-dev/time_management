@@ -1,6 +1,10 @@
 package scheduler.ui;
 
 import javax.swing.*;
+import javax.swing.event.DocumentListener;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
+
 import java.awt.*;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
@@ -12,7 +16,6 @@ import scheduler.model.FixedSchedule;
 import scheduler.model.RepeatType;
 import scheduler.service.ScheduleManager;
 
-
 /**
  * 고정 일정의 등록, 수정, 삭제 기능을 제공하는 Swing 패널이다.
  *
@@ -23,7 +26,6 @@ import scheduler.service.ScheduleManager;
  * 선택한 일정의 정보를 수정하거나 삭제할 수 있다.
  */
 public class FixedSchedulePanel extends JPanel {
-
     private ScheduleManager scheduleManager;
 
     private JTextField nameField;
@@ -33,7 +35,6 @@ public class FixedSchedulePanel extends JPanel {
     private JTextField endTimeField;
 
     private JComboBox<RepeatType> repeatTypeBox;
-
     private JCheckBox mondayBox;
     private JCheckBox tuesdayBox;
     private JCheckBox wednesdayBox;
@@ -62,8 +63,8 @@ public class FixedSchedulePanel extends JPanel {
         add(createScheduleListPanel(), BorderLayout.EAST);
 
         refreshList();
+        clearFields();
     }
-
 
     /**
      * 고정 일정의 정보를 입력하는 패널을 생성한다.
@@ -77,18 +78,48 @@ public class FixedSchedulePanel extends JPanel {
     private JPanel createInputPanel() {
         JPanel container = new JPanel(new BorderLayout(10, 10));
 
-        //제목 달기(고정 일정 등록)
-        JLabel title = new JLabel( "고정 일정 등록", SwingConstants.CENTER);
-        title.setFont( title.getFont().deriveFont( Font.BOLD, 22f));
+        // 제목 달기(고정 일정 등록)
+        JLabel title = new JLabel("고정 일정 등록", SwingConstants.CENTER);
+        title.setFont(title.getFont().deriveFont(Font.BOLD, 22f));
         container.add(title, BorderLayout.NORTH);
 
-        JPanel formPanel = new JPanel( new GridLayout(0, 2, 10, 15));
+        JPanel formPanel = new JPanel(new GridLayout(0, 2, 10, 15));
         nameField = new JTextField();
+
         startDateField = new JTextField();
         endDateField = new JTextField();
         startTimeField = new JTextField();
         endTimeField = new JTextField();
+
         repeatTypeBox = new JComboBox<>(RepeatType.values());
+
+        // 반복 유형이 NONE이면 종료일을 시작일과 자동으로 맞춤
+        startDateField.getDocument().addDocumentListener(new DocumentListener() {
+            /**
+             * {@inheritDoc}
+             */
+            @Override
+            public void insertUpdate(DocumentEvent e) {
+                syncEndDate();
+            }
+            /**
+             * {@inheritDoc}
+             */
+            @Override
+            public void removeUpdate(DocumentEvent e) {
+                syncEndDate();
+            }
+            /**
+             * {@inheritDoc}
+             */
+            @Override
+            public void changedUpdate(DocumentEvent e) {
+                syncEndDate();
+            }
+        });
+
+        // 반복 유형 변경 시 종료일 입력 상태 변경
+        repeatTypeBox.addActionListener(e -> updateDateFieldState());
 
         formPanel.add(new JLabel("일정 이름"));
         formPanel.add(nameField);
@@ -99,13 +130,13 @@ public class FixedSchedulePanel extends JPanel {
         formPanel.add(new JLabel("적용 종료일 (yyyy-MM-dd)"));
         formPanel.add(endDateField);
 
-        formPanel.add( new JLabel("시작 시간 (HH:mm)"));
+        formPanel.add(new JLabel("시작 시간 (HH:mm)"));
         formPanel.add(startTimeField);
 
-        formPanel.add( new JLabel("종료 시간 (HH:mm)"));
+        formPanel.add(new JLabel("종료 시간 (HH:mm)"));
         formPanel.add(endTimeField);
 
-        formPanel.add( new JLabel("반복 유형"));
+        formPanel.add(new JLabel("반복 유형"));
         formPanel.add(repeatTypeBox);
 
         // 반복 요일
@@ -141,17 +172,44 @@ public class FixedSchedulePanel extends JPanel {
         JButton updateButton = new JButton("수정");
         JButton clearButton = new JButton("입력 초기화");
 
-        addButton.addActionListener( e -> addSchedule());
-        updateButton.addActionListener( e -> updateSchedule());
-        clearButton.addActionListener( e -> clearFields());
+        addButton.addActionListener(e -> addSchedule());
+        updateButton.addActionListener(e -> updateSchedule());
+        clearButton.addActionListener(e -> clearFields());
 
         buttonPanel.add(addButton);
         buttonPanel.add(updateButton);
         buttonPanel.add(clearButton);
 
-        container.add( buttonPanel, BorderLayout.SOUTH);
+        container.add(buttonPanel, BorderLayout.SOUTH);
 
         return container;
+    }
+
+    /**
+     * 반복 유형이 NONE인 경우 종료일을 시작일과 동일하게 맞춘다.
+     */
+    private void syncEndDate() {
+        if (repeatTypeBox.getSelectedItem() == RepeatType.NONE) {
+            endDateField.setText(startDateField.getText());
+        }
+    }
+
+    /**
+     * 반복 유형에 따라 종료일 입력 필드의 사용 가능 여부를 변경한다.
+     *
+     * NONE인 경우 단일 날짜 일정이므로 종료일을 시작일과 동일하게 설정하고
+     * 종료일 입력 필드를 비활성화한다.
+     */
+    private void updateDateFieldState() {
+
+        RepeatType repeatType = (RepeatType) repeatTypeBox.getSelectedItem();
+
+        if (repeatType == RepeatType.NONE) {
+            endDateField.setText(startDateField.getText());
+            endDateField.setEnabled(false);
+        } else {
+            endDateField.setEnabled(true);
+        }
     }
 
     /**
@@ -166,53 +224,56 @@ public class FixedSchedulePanel extends JPanel {
      */
     private JPanel createScheduleListPanel() {
 
-        JPanel panel = new JPanel( new BorderLayout(10, 10));
-        panel.setPreferredSize( new Dimension(430, 0));
-        JLabel title = new JLabel( "고정 일정 현황", SwingConstants.CENTER);
-        title.setFont( title.getFont().deriveFont( Font.BOLD, 18f));
-        panel.add( title, BorderLayout.NORTH);
+        JPanel panel = new JPanel(new BorderLayout(10, 10));
+        panel.setPreferredSize(new Dimension(430, 0));
+        JLabel title = new JLabel("고정 일정 현황", SwingConstants.CENTER);
+        title.setFont(title.getFont().deriveFont(Font.BOLD, 18f));
+        panel.add(title, BorderLayout.NORTH);
 
-        listModel = new DefaultListModel<>();   //실제 데이터 저장
-        scheduleList = new JList<>(listModel);  //데이터를 화면에 보여줌
-        scheduleList.setSelectionMode( ListSelectionModel.SINGLE_SELECTION);    //한번에 일정 하나만 선택하도록
-        scheduleList.setCellRenderer( 
-            new DefaultListCellRenderer() {
-                /**
-                 * FixedSchedule 객체를 목록에 표시할 문자열 형태로 변환한다.
-                 *
-                 * 일정 이름, 시작 시간, 종료 시간,
-                 * 반복 유형을 하나의 문자열로 구성하여 표시한다.
-                 *
-                 * @param list 일정 목록 컴포넌트
-                 * @param value 현재 표시할 FixedSchedule 객체
-                 * @param index 현재 항목의 인덱스
-                 * @param isSelected 현재 항목의 선택 여부
-                 * @param cellHasFocus 현재 항목의 포커스 여부
-                 * @return 화면에 표시할 컴포넌트
-                 */
-                @Override
-                public Component getListCellRendererComponent(JList<?> list, Object value, int index, boolean isSelected, boolean cellHasFocus) {
+        listModel = new DefaultListModel<>(); // 실제 데이터 저장
+        scheduleList = new JList<>(listModel); // 데이터를 화면에 보여줌
+        scheduleList.setSelectionMode(ListSelectionModel.SINGLE_SELECTION); // 한번에 일정 하나만 선택하도록
+        scheduleList.setCellRenderer(
+                new DefaultListCellRenderer() {
+                    /**
+                     * FixedSchedule 객체를 목록에 표시할 문자열 형태로 변환한다.
+                     *
+                     * 일정 이름, 시작 시간, 종료 시간,
+                     * 반복 유형을 하나의 문자열로 구성하여 표시한다.
+                     *
+                     * @param list         일정 목록 컴포넌트
+                     * @param value        현재 표시할 FixedSchedule 객체
+                     * @param index        현재 항목의 인덱스
+                     * @param isSelected   현재 항목의 선택 여부
+                     * @param cellHasFocus 현재 항목의 포커스 여부
+                     * @return 화면에 표시할 컴포넌트
+                     */
+                    @Override
+                    public Component getListCellRendererComponent(JList<?> list, Object value, int index,
+                            boolean isSelected, boolean cellHasFocus) {
 
-                    super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
-                    FixedSchedule schedule = (FixedSchedule) value;
-                    setText(schedule.getName() + " | " + schedule.getStartDate() + " ~ " + schedule.getEndDate() + " | " +  
-                            schedule.getStartTime() + " ~ " + schedule.getEndTime() + " | " + schedule.getRepeatType());
-                    return this;
-                }
-            }
-        );
+                        super.getListCellRendererComponent(list, value, index, isSelected, cellHasFocus);
+                        FixedSchedule schedule = (FixedSchedule) value;
+                        setText(schedule.getName() + " | " + schedule.getStartDate() + " ~ " + schedule.getEndDate()
+                                + " | " +
+                                schedule.getStartTime() + " ~ " + schedule.getEndTime() + " | "
+                                + schedule.getRepeatType());
+                        return this;
+                    }
+                });
 
         // 선택한 일정을 입력칸에 표시
         scheduleList.addListSelectionListener(e -> {
-            if (e.getValueIsAdjusting()) return;    //선택이 완전히 끝났을 때만 처리
-
+            if (e.getValueIsAdjusting())
+                return; // 선택이 완전히 끝났을 때만 처리
 
             FixedSchedule schedule = scheduleList.getSelectedValue();
-            if (schedule == null) return;
+            if (schedule == null)
+                return;
 
             nameField.setText(schedule.getName());
             startDateField.setText(schedule.getStartDate().toString());
-            endDateField.setText(schedule.getEndDate().toString());            
+            endDateField.setText(schedule.getEndDate().toString());
             startTimeField.setText(schedule.getStartTime().toString());
             endTimeField.setText(schedule.getEndTime().toString());
             repeatTypeBox.setSelectedItem(schedule.getRepeatType());
@@ -236,7 +297,7 @@ public class FixedSchedulePanel extends JPanel {
      * 입력된 정보를 이용해 새로운 고정 일정을 등록한다.
      *
      * 입력값을 FixedSchedule 객체로 변환한 뒤,
-     * 기존 고정 일정과 시간이 충돌하지 않는 경우
+     * 기존 고정 일정 또는 배치 금지 시간과 충돌하지 않는 경우
      * ScheduleManager에 등록한다.
      *
      * 등록이 완료되면 일정 목록과 입력 필드를 갱신한다.
@@ -245,7 +306,7 @@ public class FixedSchedulePanel extends JPanel {
         try {
             FixedSchedule schedule = createScheduleFromInput();
             if (scheduleManager.checkConflict(schedule)) {
-                JOptionPane.showMessageDialog( this, "기존 일정 또는 배치 금지 시간과 충돌합니다.");
+                JOptionPane.showMessageDialog(this, "기존 일정 또는 배치 금지 시간과 충돌합니다.");
                 return;
             }
             scheduleManager.addFixedSchedule(schedule);
@@ -253,9 +314,9 @@ public class FixedSchedulePanel extends JPanel {
             refreshList();
             clearFields();
 
-            JOptionPane.showMessageDialog(this,"고정 일정이 등록되었습니다.");
+            JOptionPane.showMessageDialog(this, "고정 일정이 등록되었습니다.");
         } catch (Exception e) {
-            JOptionPane.showMessageDialog(this,"입력값을 확인하세요.\n" + "날짜: yyyy-MM-dd\n" + "시간: HH:mm");
+            JOptionPane.showMessageDialog(this, "입력값을 확인하세요.\n" + "날짜: yyyy-MM-dd\n" + "시간: HH:mm");
         }
     }
 
@@ -263,8 +324,9 @@ public class FixedSchedulePanel extends JPanel {
      * 선택된 고정 일정을 입력된 새로운 정보로 수정한다.
      *
      * 수정할 일정이 선택되지 않은 경우 안내 메시지를 표시하며,
-     * 수정된 일정이 다른 고정 일정과 충돌하는 경우 수정하지 않는다.
-     *
+     * 수정된 일정이 다른 고정 일정 또는 배치 금지 시간과
+     * 충돌하는 경우 수정하지 않는다.
+     * 
      * 수정이 성공하면 일정 목록과 입력 필드를 갱신한다.
      */
     private void updateSchedule() {
@@ -277,7 +339,7 @@ public class FixedSchedulePanel extends JPanel {
         }
         try {
             FixedSchedule newSchedule = createScheduleFromInput();
-            boolean success = scheduleManager.updateFixedSchedule(oldSchedule,newSchedule);
+            boolean success = scheduleManager.updateFixedSchedule(oldSchedule, newSchedule);
             if (!success) {
                 JOptionPane.showMessageDialog(this, "다른 고정 일정 또는 배치 금지 시간과 충돌하여 수정할 수 없습니다.");
                 return;
@@ -310,35 +372,44 @@ public class FixedSchedulePanel extends JPanel {
     }
 
     /**
- * 입력된 정보를 이용하여 FixedSchedule 객체를 생성한다.
- *
- * @return 입력값을 기반으로 생성된 고정 일정
- * @throws IllegalArgumentException 입력값이 올바르지 않은 경우
- */
-private FixedSchedule createScheduleFromInput() {
+     * 입력된 정보를 이용하여 FixedSchedule 객체를 생성한다.
+     *
+     * 반복 유형이 NONE인 경우 종료일은 시작일과 동일하게 자동 설정한다.
+     *
+     * @return 입력값을 기반으로 생성된 고정 일정
+     * @throws IllegalArgumentException 입력값이 올바르지 않은 경우
+     */
+    private FixedSchedule createScheduleFromInput() {
+        String name = nameField.getText().trim();
+        if (name.isEmpty())
+            throw new IllegalArgumentException();
 
-    String name = nameField.getText().trim();
-    if (name.isEmpty()) throw new IllegalArgumentException();
+        RepeatType repeatType = (RepeatType) repeatTypeBox.getSelectedItem();
+        LocalDate startDate = LocalDate.parse(startDateField.getText().trim());
+        LocalDate endDate;
 
-    RepeatType repeatType =(RepeatType) repeatTypeBox.getSelectedItem();
-    LocalDate startDate =LocalDate.parse(startDateField.getText().trim());
-    LocalDate endDate =LocalDate.parse(endDateField.getText().trim());
+        // NONE은 단일 날짜 일정이므로 종료일을 시작일과 동일하게 설정
+        if (repeatType == RepeatType.NONE) {
+            endDate = startDate;
+        } else {
+            endDate = LocalDate.parse(endDateField.getText().trim());
 
-    // 시작일이 종료일보다 늦으면 안 됨
-    if (startDate.isAfter(endDate)) throw new IllegalArgumentException();
+            // 시작일이 종료일보다 늦으면 안 됨
+            if (startDate.isAfter(endDate))
+                throw new IllegalArgumentException();
+        }
+        LocalTime startTime = LocalTime.parse(startTimeField.getText().trim());
+        LocalTime endTime = LocalTime.parse(endTimeField.getText().trim());
 
-    // NONE은 단일 날짜 일정
-    if (repeatType == RepeatType.NONE && !startDate.equals(endDate)) throw new IllegalArgumentException();
+        if (!startTime.isBefore(endTime))
+            throw new IllegalArgumentException();
 
-    LocalTime startTime = LocalTime.parse(startTimeField.getText().trim());
-    LocalTime endTime =LocalTime.parse(endTimeField.getText().trim());
-    if (!startTime.isBefore(endTime)) throw new IllegalArgumentException();
+        Set<DayOfWeek> repeatDays = getSelectedRepeatDays();
+        if (repeatType == RepeatType.WEEKLY && repeatDays.isEmpty())
+            throw new IllegalArgumentException();
 
-    Set<DayOfWeek> repeatDays =getSelectedRepeatDays();
-    if (repeatType == RepeatType.WEEKLY && repeatDays.isEmpty()) throw new IllegalArgumentException();
-    
-    return new FixedSchedule( name, startDate, endDate, startTime, endTime, repeatType, repeatDays);
-}
+        return new FixedSchedule(name, startDate, endDate, startTime, endTime, repeatType, repeatDays);
+    }
 
     /**
      * 반복 요일 체크박스에서 현재 선택된 요일을 수집한다.
@@ -350,13 +421,20 @@ private FixedSchedule createScheduleFromInput() {
      */
     private Set<DayOfWeek> getSelectedRepeatDays() {
         Set<DayOfWeek> days = EnumSet.noneOf(DayOfWeek.class);
-        if (mondayBox.isSelected())days.add(DayOfWeek.MONDAY);
-        if (tuesdayBox.isSelected())days.add(DayOfWeek.TUESDAY);
-        if (wednesdayBox.isSelected())days.add(DayOfWeek.WEDNESDAY);
-        if (thursdayBox.isSelected())days.add(DayOfWeek.THURSDAY);
-        if (fridayBox.isSelected())days.add(DayOfWeek.FRIDAY);
-        if (saturdayBox.isSelected())days.add(DayOfWeek.SATURDAY);
-        if (sundayBox.isSelected())days.add(DayOfWeek.SUNDAY);
+        if (mondayBox.isSelected())
+            days.add(DayOfWeek.MONDAY);
+        if (tuesdayBox.isSelected())
+            days.add(DayOfWeek.TUESDAY);
+        if (wednesdayBox.isSelected())
+            days.add(DayOfWeek.WEDNESDAY);
+        if (thursdayBox.isSelected())
+            days.add(DayOfWeek.THURSDAY);
+        if (fridayBox.isSelected())
+            days.add(DayOfWeek.FRIDAY);
+        if (saturdayBox.isSelected())
+            days.add(DayOfWeek.SATURDAY);
+        if (sundayBox.isSelected())
+            days.add(DayOfWeek.SUNDAY);
 
         return days;
     }
@@ -380,7 +458,6 @@ private FixedSchedule createScheduleFromInput() {
         sundayBox.setSelected(days.contains(DayOfWeek.SUNDAY));
     }
 
-
     /**
      * ScheduleManager에 저장된 고정 일정 정보를 불러와
      * 화면의 고정 일정 목록을 최신 상태로 갱신한다.
@@ -393,7 +470,6 @@ private FixedSchedule createScheduleFromInput() {
         }
     }
 
-
     /**
      * 고정 일정 입력 필드와 반복 설정을 초기 상태로 되돌린다.
      *
@@ -402,14 +478,17 @@ private FixedSchedule createScheduleFromInput() {
      * 모든 반복 요일 체크박스와 일정 목록 선택을 해제한다.
      */
     private void clearFields() {
-
         nameField.setText("");
-        startDateField.setText("");
-        endDateField.setText("");
+        
+        String today = LocalDate.now().toString();
+        startDateField.setText(today);
+        endDateField.setText(today);
+
         startTimeField.setText("");
         endTimeField.setText("");
 
-        repeatTypeBox.setSelectedItem( RepeatType.NONE);
+        repeatTypeBox.setSelectedItem(RepeatType.NONE);
+        updateDateFieldState();
 
         mondayBox.setSelected(false);
         tuesdayBox.setSelected(false);

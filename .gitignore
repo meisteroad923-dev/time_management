@@ -1,3 +1,4 @@
 *.class
+*.dat
 tempCodeRunnerFile.java
-scheduleData.dat
+api_manual/

@@ -7,7 +7,7 @@ import java.util.Set;
 
 import java.io.Serializable;
 /**
- * 사용자가 직접 등록하는 고정 일정을 나타내는 클래스이다.
+ * 사용자가 등록하는 고정 일정을 나타내는 클래스이다.
  *
  * 고정 일정은 적용 시작일과 종료일을 가지며,
  * 반복 유형에 따라 특정 기간 동안 한 번, 매일 또는 매주 반복될 수 있다.
@@ -23,9 +23,7 @@ public class FixedSchedule implements Serializable{
     private static final long serialVersionUID = 1L;
 
     /**
-     * 완성 후 고정 일정이 모든 시간에 걸쳐 반복되는
-     * 문제를 해결 하기 위해 만든 생성자.
-     * 적용 기간을 포함하는 고정 일정을 생성한다.
+     * 적용 기간, 시간 및 반복 정보를 포함하는 고정 일정을 생성한다.
      *
      * @param name 일정 이름
      * @param startDate 일정 적용 시작일

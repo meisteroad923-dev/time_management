@@ -6,6 +6,7 @@ import java.time.DayOfWeek;
 import java.util.Set;
 
 import java.io.Serializable;
+
 /**
  * 유동 일정의 자동 배치를 금지하는 시간대를 나타내는 클래스이다.
  *

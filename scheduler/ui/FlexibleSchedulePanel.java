@@ -41,6 +41,7 @@ public class FlexibleSchedulePanel extends JPanel {
         add(createScheduleListPanel(), BorderLayout.EAST);
 
         refreshList();
+        clearFields();
     }
 
     /**
@@ -251,8 +252,7 @@ public class FlexibleSchedulePanel extends JPanel {
      *
      * @param completed 생성할 일정의 완료 상태
      * @return 입력값을 기반으로 생성된 FlexibleSchedule 객체
-     * @throws IllegalArgumentException 일정 이름이 비어 있거나
-     *                                  예상 시간이 0 이하인 경우
+     * @throws IllegalArgumentException 입력값이 올바르지 않은 경우
      */
     private FlexibleSchedule createScheduleFromInput(boolean completed) {
         String name = nameField.getText().trim();
@@ -284,7 +284,7 @@ public class FlexibleSchedulePanel extends JPanel {
     private void clearFields() {
         nameField.setText("");
         durationField.setText("");
-        deadlineField.setText("");
+        deadlineField.setText(LocalDate.now().toString());
 
         importanceBox.setSelectedIndex(0);
 
