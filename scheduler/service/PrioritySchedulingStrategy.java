@@ -28,19 +28,22 @@ import scheduler.model.WeeklySchedule;
  */
 public class PrioritySchedulingStrategy implements SchedulingStrategy {
     /**
-     * 입력된 일정 정보를 기준으로 한 주의 유동 일정을 자동 배치한다.
+     * 지정된 주간에서 완료되지 않은 유동 일정들을 우선순위에 따라 자동 배치한다.
      *
-     * 고정 일정과 배치 금지 시간을 제외한 빈 시간대를 생성하고,
-     * 유동 일정을 마감일, 중요도, 예상 소요 시간 순으로 정렬하여
-     * 배치 가능한 가장 빠른 시간대에 배치한다.
+     * 고정 일정과 배치 금지 시간을 제외하여 사용 가능한 시간대를 계산하고,
+     * 사용자가 지정한 자동 배치 시작일부터 주의 마지막 날까지만 배치 대상으로 사용한다.
      *
-     * @param flexibleSchedules 유동 일정 목록
-     * @param fixedSchedules 고정 일정 목록
-     * @param blockedTimes 배치 금지 시간 목록
-     * @param weekStart 배치할 주의 시작일
-     * @param dayStart 하루 배치 시작 시간
-     * @param dayEnd 하루 배치 종료 시간
-     * @return 한 주의 자동 배치 결과
+     * 유동 일정은 마감일이 빠른 순, 중요도가 높은 순,
+     * 예상 소요시간이 긴 순으로 정렬한 뒤 사용 가능한 시간대에 배치한다.
+     *
+     * @param flexibleSchedules 자동 배치할 유동 일정 목록
+     * @param fixedSchedules    등록된 고정 일정 목록
+     * @param blockedTimes      등록된 배치 금지 시간 목록
+     * @param weekStart         자동 배치를 수행할 주의 시작일
+     * @param scheduleStartDate 해당 주에서 자동 배치를 시작할 날짜
+     * @param dayStart          하루 자동 배치 가능 시작 시간
+     * @param dayEnd            하루 자동 배치 가능 종료 시간
+     * @return 배치된 일정과 배치되지 못한 일정을 포함하는 WeeklySchedule
      */
     @Override
     public WeeklySchedule schedule(
@@ -48,10 +51,12 @@ public class PrioritySchedulingStrategy implements SchedulingStrategy {
             List<FixedSchedule> fixedSchedules,
             List<BlockedTime> blockedTimes,
             LocalDate weekStart,
+            LocalDate scheduleStartDate,
             LocalTime dayStart,
             LocalTime dayEnd) {
         // 고정 일정과 블록시간대 기준으로 유동일정 배치 가능 시간대를 계산
-        Map<LocalDate, List<TimeSlot>> weeklyFreeSlots = createWeeklyFreeSlots(weekStart, dayStart, dayEnd,
+        Map<LocalDate, List<TimeSlot>> weeklyFreeSlots = createWeeklyFreeSlots(weekStart, scheduleStartDate, dayStart,
+                dayEnd,
                 fixedSchedules, blockedTimes);
         // 완료되지 않은 유동일정을 정렬
         List<FlexibleSchedule> schedulesToPlace = sortFlexibleSchedule(flexibleSchedules);
@@ -59,7 +64,8 @@ public class PrioritySchedulingStrategy implements SchedulingStrategy {
         WeeklySchedule weeklySchedule = new WeeklySchedule(weekStart);
         // 유동일정 배치
         for (FlexibleSchedule schedule : schedulesToPlace) {
-            ScheduledTask scheduledTask = placeFlexibleSchedule(schedule, weekStart, weeklyFreeSlots);
+            ScheduledTask scheduledTask = placeFlexibleSchedule(schedule, weekStart, scheduleStartDate,
+                    weeklyFreeSlots);
 
             // 배치가 성공하면 결과 자료구조에 추가
             if (scheduledTask != null)
@@ -74,8 +80,8 @@ public class PrioritySchedulingStrategy implements SchedulingStrategy {
      * 일정의 적용 기간과 반복 유형을 기준으로
      * 특정 날짜에 일정이 적용되는지 판단한다.
      *
-     * @param startDate 일정 적용 시작일
-     * @param endDate 일정 적용 종료일
+     * @param startDate  일정 적용 시작일
+     * @param endDate    일정 적용 종료일
      * @param repeatType 반복 유형
      * @param repeatDays 반복 요일 집합
      * @param targetDate 확인할 날짜
@@ -106,11 +112,11 @@ public class PrioritySchedulingStrategy implements SchedulingStrategy {
      * 계산된 빈 시간 구간은 유동 일정의 자동 배치에 사용되며,
      * 시작 및 종료 시간은 30분 단위에 맞게 보정된다.
      *
-     * @param targetDate 빈 시간대를 계산할 날짜
-     * @param dayStart 하루 배치 시작 시간
-     * @param dayEnd 하루 배치 종료 시간
+     * @param targetDate     빈 시간대를 계산할 날짜
+     * @param dayStart       하루 배치 시작 시간
+     * @param dayEnd         하루 배치 종료 시간
      * @param fixedSchedules 고정 일정 목록
-     * @param blockedTimes 배치 금지 시간 목록
+     * @param blockedTimes   배치 금지 시간 목록
      * @return 해당 날짜의 배치 가능한 빈 시간 구간 목록
      */
     private List<TimeSlot> createFreeSlotsForDate(LocalDate targetDate, LocalTime dayStart, LocalTime dayEnd,
@@ -166,7 +172,8 @@ public class PrioritySchedulingStrategy implements SchedulingStrategy {
                 LocalTime freeStart = ceilTo30Minutes(cursor);
                 LocalTime freeEnd = floorTo30Minutes(slotStart);
 
-                if (freeStart.isBefore(freeEnd)) freeSlots.add(new TimeSlot(targetDate, freeStart, freeEnd));
+                if (freeStart.isBefore(freeEnd))
+                    freeSlots.add(new TimeSlot(targetDate, freeStart, freeEnd));
             }
 
             // 점유시간 끝까지 cursor 이동
@@ -178,31 +185,38 @@ public class PrioritySchedulingStrategy implements SchedulingStrategy {
             LocalTime freeStart = ceilTo30Minutes(cursor);
             LocalTime freeEnd = floorTo30Minutes(dayEnd);
 
-            if (freeStart.isBefore(freeEnd)){
-                freeSlots.add( new TimeSlot(targetDate, freeStart, freeEnd));
+            if (freeStart.isBefore(freeEnd)) {
+                freeSlots.add(new TimeSlot(targetDate, freeStart, freeEnd));
             }
         }
         return freeSlots;
     }
 
     /**
-     * 주의 시작일부터 7일 동안 각 날짜의 빈 시간대를 계산한다.
+     * 지정된 자동 배치 시작일부터 주의 마지막 날까지
+     * 각 날짜의 빈 시간대를 계산한다.
      *
-     * @param weekStart 주의 시작일
-     * @param dayStart 하루 배치 시작 시간
-     * @param dayEnd 하루 배치 종료 시간
-     * @param fixedSchedules 고정 일정 목록
-     * @param blockedTimes 배치 금지 시간 목록
+     * 자동 배치 시작일 이전 날짜는 빈 시간 계산 대상에서 제외한다.
+     *
+     * @param weekStart         주의 시작일
+     * @param scheduleStartDate 자동 배치를 시작할 날짜
+     * @param dayStart          하루 배치 시작 시간
+     * @param dayEnd            하루 배치 종료 시간
+     * @param fixedSchedules    고정 일정 목록
+     * @param blockedTimes      배치 금지 시간 목록
      * @return 날짜별 빈 시간 구간을 저장한 Map
      */
-    private Map<LocalDate, List<TimeSlot>> createWeeklyFreeSlots(LocalDate weekStart, LocalTime dayStart,
-            LocalTime dayEnd,
+    private Map<LocalDate, List<TimeSlot>> createWeeklyFreeSlots(LocalDate weekStart, LocalDate scheduleStartDate,
+            LocalTime dayStart, LocalTime dayEnd,
             List<FixedSchedule> fixedSchedules, List<BlockedTime> blockedTimes) {
         Map<LocalDate, List<TimeSlot>> weeklyFreeSlots = new HashMap<>();
 
         for (int i = 0; i < 7; i++) {
             LocalDate date = weekStart.plusDays(i);
-
+            // 자동 배치 시작일 이전 날짜는 배치 대상에서 제외
+            if (date.isBefore(scheduleStartDate)) {
+                continue;
+            }
             List<TimeSlot> freeSlots = createFreeSlotsForDate(date, dayStart, dayEnd, fixedSchedules, blockedTimes);
             weeklyFreeSlots.put(date, freeSlots);
         }
@@ -237,47 +251,51 @@ public class PrioritySchedulingStrategy implements SchedulingStrategy {
     }
 
     /**
-     * 하나의 유동 일정을 주간 빈 시간대에 배치한다.
+     * 하나의 유동 일정을 자동 배치 시작일부터 주의 마지막 날까지
+     * 사용 가능한 빈 시간대에 배치한다.
      *
-     * 주의 시작일부터 마감일까지 순서대로 탐색하며,
+     * 각 날짜를 순서대로 탐색하며 일정의 마감일을 초과하지 않는 범위에서
      * 필요한 시간을 확보할 수 있는 첫 번째 빈 시간대에 일정을 배치한다.
      *
-     * @param schedule 배치할 유동 일정
-     * @param weekStart 주의 시작일
-     * @param weeklyFreeSlots 날짜별 빈 시간 구간
+     * @param schedule          배치할 유동 일정
+     * @param weekStart         주의 시작일
+     * @param scheduleStartDate 자동 배치를 시작할 날짜
+     * @param weeklyFreeSlots   날짜별 빈 시간 구간
      * @return 배치에 성공한 일정 정보, 배치할 수 없으면 null
      */
-    private ScheduledTask placeFlexibleSchedule(FlexibleSchedule schedule, LocalDate weekStart,
-            Map<LocalDate, List<TimeSlot>> weeklyFreeSlots) {
-        // 월-일까지 순서대로 꺼내면서 배치
+    private ScheduledTask placeFlexibleSchedule( FlexibleSchedule schedule, LocalDate weekStart, LocalDate scheduleStartDate, Map<LocalDate, List<TimeSlot>> weeklyFreeSlots) {
+
         for (int i = 0; i < 7; i++) {
             LocalDate date = weekStart.plusDays(i);
+            // 자동 배치 시작일 이전 날짜는 제외
+            if (date.isBefore(scheduleStartDate)) continue;
+            
+            // 마감일 이후에는 더 이상 배치할 수 없음
+            if (date.isAfter(schedule.getDeadline())) break;
+            
+            List<TimeSlot> slots = weeklyFreeSlots.get(date);
+            if (slots == null) continue;
 
-            // 현재 날짜가 deadLine이후면 종료
-            if (date.isAfter(schedule.getDeadline()))
-                break;
-
-            List<TimeSlot> slots = weeklyFreeSlots.get(date); // 해당 날짜의 빈 시간 리스트를 꺼냄
-            // 슬롯의 빈칸을 하나씩 꺼내서 유동일정이 들어갈 공간이 있음 바로 넣음
             for (int j = 0; j < slots.size(); j++) {
                 TimeSlot slot = slots.get(j);
 
                 if (slot.getDurationMinutes() >= schedule.getEstimatedMinutes()) {
                     LocalTime taskStart = slot.getStartTime();
                     LocalTime taskEnd = taskStart.plusMinutes(schedule.getEstimatedMinutes());
+                    ScheduledTask scheduledTask = new ScheduledTask(schedule,date,taskStart,taskEnd);
 
-                    ScheduledTask scheduledTask = new ScheduledTask(schedule, date, taskStart, taskEnd);
-
-                    // 슬롯 사이즈와 스케줄 사이즈가 일치한 경우
+                    // 빈 슬롯을 전부 사용한 경우
                     if (taskEnd.equals(slot.getEndTime())) {
                         slots.remove(j);
-                    } else { // 슬롯 사이즈가 스케줄 사이즈보다 큰 경우
-                        slots.set(j, new TimeSlot(date, taskEnd, slot.getEndTime()));
+                    } else {
+                        // 남은 빈 시간을 다시 슬롯으로 저장
+                        slots.set(j, new TimeSlot( date, taskEnd, slot.getEndTime()));
                     }
                     return scheduledTask;
                 }
             }
         }
+
         return null;
     }
 
@@ -292,8 +310,10 @@ public class PrioritySchedulingStrategy implements SchedulingStrategy {
     private LocalTime ceilTo30Minutes(LocalTime time) {
         int minute = time.getMinute();
 
-        if (minute == 0 || minute == 30) return time;
-        if (minute < 30) return time.withMinute(30).withSecond(0).withNano(0);
+        if (minute == 0 || minute == 30)
+            return time;
+        if (minute < 30)
+            return time.withMinute(30).withSecond(0).withNano(0);
 
         return time.plusHours(1).withMinute(0).withSecond(0).withNano(0);
     }
@@ -307,8 +327,9 @@ public class PrioritySchedulingStrategy implements SchedulingStrategy {
     private LocalTime floorTo30Minutes(LocalTime time) {
         int minute = time.getMinute();
 
-        if (minute < 30) return time.withMinute(0).withSecond(0).withNano(0);
-        
+        if (minute < 30)
+            return time.withMinute(0).withSecond(0).withNano(0);
+
         return time.withMinute(30).withSecond(0).withNano(0);
     }
 }
