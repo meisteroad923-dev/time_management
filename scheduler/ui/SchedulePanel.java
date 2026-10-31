@@ -2,6 +2,7 @@ package scheduler.ui;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
+import javax.swing.table.DefaultTableCellRenderer;
 
 import java.awt.*;
 import java.time.DayOfWeek;
@@ -139,6 +140,56 @@ public class SchedulePanel extends JPanel {
         scheduleTable = new JTable(tableModel);
         scheduleTable.setRowHeight(30);
         scheduleTable.setAutoResizeMode(JTable.AUTO_RESIZE_ALL_COLUMNS);
+
+        // 일정 종류에 따라 시간표 셀의 배경색을 구분한다.
+        scheduleTable.setDefaultRenderer(Object.class, new DefaultTableCellRenderer() {
+
+            /**
+             * {@inheritDoc}
+             */
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected, boolean hasFocus, int row, int column) {
+
+                Component component = super.getTableCellRendererComponent( table, value, false, hasFocus, row, column);
+
+                // 첫 번째 열(시간)은 항상 흰색
+                if (column == 0) {
+                    component.setBackground(Color.WHITE);
+                    return component;
+                }
+
+                // 일정이 없는 셀
+                if (value == null || value.toString().isBlank()) {
+                    component.setBackground(Color.WHITE);
+                    return component;
+                }
+
+                String text = value.toString();
+
+                if (text.startsWith("[고정]")) {
+                    // 고정 일정 - 연한 파랑
+                    component.setBackground(new Color(220, 235, 250));
+
+                } else if (text.startsWith("[금지]")) {
+                    // 배치 금지 시간 - 연한 빨강
+                    component.setBackground(new Color(255, 225, 225));
+
+                } else if (text.startsWith("[자동]")) {
+                    // 자동 배치 유동 일정 - 연한 초록
+                    component.setBackground(new Color(225, 245, 225));
+
+                } else {
+                    component.setBackground(Color.WHITE);
+                }
+
+                return component;
+            }
+        });
+
+        // 시간표는 조회용이므로 셀 선택 기능을 비활성화한다.
+        scheduleTable.setRowSelectionAllowed(false);
+        scheduleTable.setColumnSelectionAllowed(false);
+        scheduleTable.setCellSelectionEnabled(false);
 
         panel.add(new JScrollPane(scheduleTable), BorderLayout.CENTER);
 
